@@ -3,6 +3,7 @@ import numpy as np
 import cv2
 import time
 import random
+# from carla_env import Carlaenv
 
 # Based on the carla tutorial script tutorial.py
 
@@ -25,12 +26,23 @@ def check_collision(data):
     print('Collision!!!')
     pass
 
-# def main():
+
+def drive_loop(vehicle):
+    while True:
+        # This is where the action is taken (RL action)
+        vehicle.apply_control(carla.VehicleControl(throttle=random.random(), steer=random.random(), reverse=False))
+        time.sleep(10)
+        vehicle.apply_control(carla.VehicleControl(throttle=random.random(),brake=1.0, reverse=False))
+        time.sleep(10)
+        vehicle.apply_control(carla.VehicleControl(throttle=random.random(), steer=random.random(), reverse=True))
+        time.sleep(10)
+    
+
 # This sets up the environmnet, have to loop through the environment and update
 actor_list = []
 
 try:
-
+    # carlaenv = Carlaenv()
     # requests in the localhost at port 2000.
     client = carla.Client('localhost', 2000)
     client.set_timeout(2.0)
@@ -103,7 +115,6 @@ try:
     vehicle.set_autopilot(False)
 
 
-
     # But the city now is probably quite empty, let's add a few more
     # vehicles.
     transform.location += carla.Location(x=40, y=-3.2)
@@ -121,11 +132,7 @@ try:
             npc.set_autopilot(True)
             print('created %s' % npc.type_id)
     
-    while True:
-        # This is where the action is taken (RL action)
-        vehicle.apply_control(carla.VehicleControl(throttle=random.random(), steer=random.random(), reverse=False))
-        time.sleep(1)
-        vehicle.apply_control(carla.VehicleControl(throttle=random.random(), steer=random.random(), reverse=True))
+    drive_loop(vehicle)
 
 
 finally:
@@ -133,11 +140,6 @@ finally:
     # camera.destroy()
     client.apply_batch([carla.command.DestroyActor(x) for x in actor_list])
     print('done.')
-
-
-
-# if "__name__" == "main":
-#     main()
 
     # model_dir = os.path.join(os.getcwd(), 'models')
     # os.makedirs(os.path.join(model_dir, str(datetime.date.today()) + '-' + 'Carla'), exist_ok=True)
