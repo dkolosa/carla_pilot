@@ -1,5 +1,7 @@
 import os, sys, glob
 import numpy as np
+import random
+
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -10,8 +12,7 @@ except IndexError:
 import carla
 
 class Carlaenv():
-
-    def __init__():
+    def __init__(self):
 
         self.client = carla.Client('localhost', 2000)
         self.client.set_timeout(2.0)
@@ -21,13 +22,15 @@ class Carlaenv():
         self.img_width = 800
         self.inpuut_image = None
 
+        self.observation_space = np.array((800, 600))
+
         # Once we have a client we can retrieve the world that is currently
         self.world = self.client.get_world()
 
         # The world contains the list blueprints that we can use for adding new
         blueprint_library = self.world.get_blueprint_library()
 
-        self.vehicle_bp = random.choice(blueprint_library.filter('vehicle.toyota'))
+        self.vehicle_bp = random.choice(blueprint_library.filter('vehicle.*'))
 
 
     def setup_sensors(self):
@@ -47,30 +50,30 @@ class Carlaenv():
         self.actor_list.append(self.sensor_cam)
 
 
-    def step(self):
+    def step(self, action):
         # process action
-        self.vehicle.apply_control(carla.VehicleControl(throttle=random.random(), steer=random.random(), reverse=False))
+        speed = action[0]
+        angle = action[1]
+        self.vehicle.apply_control(carla.VehicleControl(throttle=speed, steer=angle, reverse=False))
 
-        # get the image
-        self.sensor_cam.listen(lambda data: process_image(data))
+        # # get the image
+        # self.sensor_cam.listen(lambda data: self.process_image(data))
 
-        # check for collision
-        self.sensor_collision.listen(lambda data: check_collision(data))
-
-        # state is the image
-        # reward (distnce)
-        self.calculate_reward()
-        
+        # # check for collision
+        # self.sensor_collision.listen(lambda data: self.check_collision(data))
+            # get the velocity as well
+        velocity = vehicle.get_velocity()
+        state = self.input_image
+        print(state)
+        # Will have to do reward shaping (distance to target??)
+        reward = 0
         done = False
         # check for collision
-        if collision:
+        if self.collision:
             reward = -10
         # done (collision??)
-        return state, rewaard, done
+        return state, reward, done
 
-    def calculate_reward(self):
-        
-        return rewaard
 
     def reset(self):
 
@@ -94,25 +97,17 @@ class Carlaenv():
         self.vehicle.apply_control(self.carla.VehicleControl(throttle=0.0, steer=0.0, reverse=True))
         time.sleep(2)
 
-
-
-    def process_image(data):
+    def process_image(self, data):
         raw = np.array(data)
         self.input_image = np.resshape(raw, (self.img_height, self.img_width, 4))
     # will have to reshape data to an image (w x h x 4)
 
-    def check_collision(data):
+    def check_collision(self, data):
         # check for collision and act accordingly
-        print('Collision!!!')
-        pass
+            self.collision = data
 
-
-    def drive_loop(vehicle):
-        while True:
-            # This is where the action is taken (RL action)
-            vehicle.apply_control(carla.VehicleControl(throttle=random.random(), steer=random.random(), reverse=False))
-            time.sleep(10)
-            vehicle.apply_control(carla.VehicleControl(throttle=random.random(),brake=1.0, reverse=False))
-            time.sleep(10)
-            vehicle.apply_control(carla.VehicleControl(throttle=random.random(), steer=random.random(), reverse=True))
-            time.sleep(10)
+    def destroy(self):
+        print('destroying actors')
+        # camera.destroy()
+        self.client.apply_batch([carla.command.DestroyActor(x) for x in self.actor_list])
+        print('done.')

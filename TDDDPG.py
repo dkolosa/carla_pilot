@@ -2,8 +2,8 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
-from Satmind.tf2model import Critic, Actor
-from Satmind.replay_memory import Per_Memory, Uniform_Memory
+from tf2model import Critic, Actor
+from replay_memory import Per_Memory, Uniform_Memory
 
 class TDDDPG():
     def __init__(self, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, PER, GAMMA,
