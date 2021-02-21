@@ -1,6 +1,7 @@
 import os, sys, glob
 import numpy as np
 import random
+import time
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -18,11 +19,11 @@ class Carlaenv():
         self.client.set_timeout(2.0)
 
         # Image height and width
-        self.img_height = 600
-        self.img_width = 800
+        self.img_height = 224
+        self.img_width = 224
         self.inpuut_image = None
 
-        self.observation_space = np.array((800, 600))
+        self.observation_space = np.array((self.img_height, self.img_width))
 
         # Once we have a client we can retrieve the world that is currently
         self.world = self.client.get_world()
@@ -62,7 +63,7 @@ class Carlaenv():
         # # check for collision
         # self.sensor_collision.listen(lambda data: self.check_collision(data))
             # get the velocity as well
-        velocity = vehicle.get_velocity()
+        # velocity = vehicle.get_velocity()
         state = self.input_image
         print(state)
         # Will have to do reward shaping (distance to target??)
@@ -99,7 +100,7 @@ class Carlaenv():
 
     def process_image(self, data):
         raw = np.array(data)
-        self.input_image = np.resshape(raw, (self.img_height, self.img_width, 4))
+        self.input_image = np.resshape(raw, (self.img_height, self.img_width, 3))
     # will have to reshape data to an image (w x h x 4)
 
     def check_collision(self, data):

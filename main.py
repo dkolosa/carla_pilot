@@ -90,7 +90,7 @@ try:
             else:
                 agent.memory.add(
                     (np.reshape(s, (n_state,)), np.reshape(a, (n_action,)), r, np.reshape(s1, (n_state,)), done))
-            agent.train(j)
+            # agent.train(j)
 
             sum_reward += r
             s = s1

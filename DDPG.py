@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tf2model import Critic, Actor
+import tf2modelvision
 from replay_memory import Per_Memory, Uniform_Memory
 import os
 
@@ -16,11 +17,11 @@ class DDPG():
 
         self.save_dir = save_dir
 
-        self.actor = Actor(n_action, action_bound, layer_1_nodes, layer_2_nodes)
-        self.critic = Critic(layer_1_nodes, layer_2_nodes)
+        self.actor = tf2modelvision.Actor(n_action, action_bound, layer_1_nodes, layer_2_nodes)
+        self.critic = tf2modelvision.Critic(layer_1_nodes, layer_2_nodes)
 
-        self.actor_target = Actor(n_action, action_bound, layer_1_nodes, layer_2_nodes, model_name='actor_target')
-        self.critic_target = Critic(layer_1_nodes, layer_2_nodes, model_name='critic_target')
+        self.actor_target = tf2modelvision.Actor(n_action, action_bound, layer_1_nodes, layer_2_nodes, model_name='actor_target')
+        self.critic_target = tf2modelvision.Critic(layer_1_nodes, layer_2_nodes, model_name='critic_target')
 
         self.actor.compile(optimizer=Adam(learning_rate=actor_lr))
         self.critic.compile(optimizer=Adam(learning_rate=critic_lr))
@@ -43,10 +44,10 @@ class DDPG():
                 mem, idxs, self.isweight = self.memory.sample(self.batch_size)
             else:
                 mem = self.memory.sample(self.batch_size)
-            s_rep = tf.convert_to_tensor(np.array([_[0] for _ in mem]), dtype=tf.float32)
+            s_rep = tf.convert_to_tensor(np.reshape(np.array([_[0] for _ in mem]),(-1,96,96,3)), dtype=tf.float32)
             a_rep = tf.convert_to_tensor(np.array([_[1] for _ in mem]), dtype=tf.float32)
             r_rep = tf.convert_to_tensor(np.array([_[2] for _ in mem]), dtype=tf.float32)
-            s1_rep = tf.convert_to_tensor(np.array([_[3] for _ in mem]), dtype=tf.float32)
+            s1_rep = tf.convert_to_tensor(np.reshape(np.array([_[3] for _ in mem]),(-1,96,96,3)), dtype=tf.float32)
             d_rep = tf.convert_to_tensor(np.array([_[4] for _ in mem]), dtype=tf.float32)
 
             td_error, critic_loss = self.loss_critic(a_rep, d_rep, r_rep, s1_rep, s_rep)
@@ -68,7 +69,7 @@ class DDPG():
     @tf.function
     def loss_actor(self, s_rep):
         with tf.GradientTape() as tape:
-            actions = self.actor(s_rep)
+            actions = self.actor((s_rep))
             actor_loss = -tf.reduce_mean(self.critic(s_rep, actions))
         actor_grad = tape.gradient(actor_loss, self.actor.trainable_variables)  # compute actor gradient
         self.actor.optimizer.apply_gradients(zip(actor_grad, self.actor.trainable_variables))
@@ -89,6 +90,16 @@ class DDPG():
         critic_gradient = tape.gradient(critic_loss, self.critic.trainable_variables)
         self.critic.optimizer.apply_gradients(zip(critic_gradient, self.critic.trainable_variables))
         return td_error, critic_loss
+
+    @tf.function
+    def preprocess(self, image):
+        # image = np.reshape(image, (-1, 96, 96, 3))
+        image = tf.cast(image, tf.float32)
+        image = image[tf.newaxis, :]
+        image = tf.image.resize(image, (96, 96))
+        image = tf.keras.applications.mobilenet_v2.preprocess_input(image)
+        return image
+
 
     def update_target_network(self, network_params, target_network_params, tau=.001):
         weights = network_params.get_weights()
