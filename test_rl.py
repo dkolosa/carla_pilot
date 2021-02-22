@@ -27,7 +27,7 @@ def test_rl():
     n_state = env.observation_space.shape
     n_action = 3
 
-    action_bound = 1
+    action_bound = 2
 
     env.seed(1234)
     np.random.seed(1234)
@@ -35,9 +35,9 @@ def test_rl():
     num_episodes = 1001
     PER = False
 
-    batch_size = 12
+    batch_size = 8
     #Pendulum
-    layer_1_nodes, layer_2_nodes = 256, 256
+    layer_1_nodes, layer_2_nodes = 32, 64
 
     tau = 0.01
     actor_lr, critic_lr = 0.0001, 0.001
@@ -53,7 +53,7 @@ def test_rl():
     agent.update_target_network(agent.critic, agent.critic_target, agent.tau)
 
     load_models = False
-    save = False
+    save = True
 
     # If loading model, a gradient update must be called once before loading weights
     if load_models:
@@ -67,12 +67,12 @@ def test_rl():
         agent.critic_loss = 0
         j = 0
 
-        while True:
+        while j < 201:
             env.render()
             s = agent.preprocess(s)
             
             a = tf.squeeze(agent.actor(s))
-            a_clip = np.clip(tf.squeeze(a),-1, 1)
+            a_clip = np.array(a) + actor_noise()
 
             s1, r, done, _ = env.step(a_clip)
 
@@ -89,6 +89,8 @@ def test_rl():
             sum_reward += r
             s = s1
             j += 1
+            if j >= 201:
+                done = True
             if done:
                 print(f'Episode: {i}, reward: {int(sum_reward)}, q_max: {agent.sum_q / float(j)},\nactor loss:{agent.actor_loss / float(j)}, critic loss:{agent.critic_loss/ float(j)}')
                 # rewards.append(sum_reward)
