@@ -1,10 +1,12 @@
-import tensorflow as tf
+# import tensorflow as tf
 import numpy as np
 import gym
 import gym.spaces
 import os, datetime
 from utils import OrnsteinUhlenbeck
-from DDPG import DDPG
+# from DDPG import DDPG
+from ppo import ppo
+from model import Actor, Critic
 
 
 def test_rl():
