@@ -1,11 +1,11 @@
-# import tensorflow as tf
+import torch as T
 import numpy as np
 import gym
 import gym.spaces
 import os, datetime
 from utils import OrnsteinUhlenbeck
-# from DDPG import DDPG
-from ppo import ppo
+from DDPGtorch import DDPG
+
 from model import Actor, Critic
 
 
@@ -48,11 +48,11 @@ def test_rl():
 
     actor_noise = OrnsteinUhlenbeck(np.zeros(n_action))
 
-    agent = DDPG(n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, PER, GAMMA,
+    agent = DDPG(n_state, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, PER, GAMMA,
                  tau, batch_size, save_dir)
 
-    agent.update_target_network(agent.actor, agent.actor_target, agent.tau)
-    agent.update_target_network(agent.critic, agent.critic_target, agent.tau)
+    # agent.update_target_network(agent.actor, agent.actor_target, agent.tau)
+    # agent.update_target_network(agent.tau)
 
     load_models = False
     save = True
@@ -73,20 +73,20 @@ def test_rl():
             env.render()
             s = agent.preprocess(s)
             
-            a = tf.squeeze(agent.actor(s))
+            a = agent.actor(s)
             a_clip = np.array(a) + actor_noise()
 
             s1, r, done, _ = env.step(a_clip)
 
             # Store in replay memory
-            if PER:
-                error = 1 # D_i = max D
-                agent.memory.add(error, (
-                np.reshape(s, (n_state,)), np.reshape(a_clip, (n_action,)), r, np.reshape(s1, (n_state,)), done))
-            else:
-                agent.memory.add(
-                    (np.reshape(s, (img_height*img_width*n_channels,)), np.reshape(a_clip, (n_action,)), r, np.reshape(s1, (img_width*img_height*3,)), done))
-            agent.train()
+            # if PER:
+            #     error = 1 # D_i = max D
+            #     agent.memory.add(error, (
+            #     np.reshape(s, (n_state,)), np.reshape(a_clip, (n_action,)), r, np.reshape(s1, (n_state,)), done))
+            # else:
+            #     agent.memory.add(
+            #         (np.reshape(s, (img_height*img_width*n_channels,)), np.reshape(a_clip, (n_action,)), r, np.reshape(s1, (img_width*img_height*3,)), done))
+            # agent.train()
 
             sum_reward += r
             s = s1

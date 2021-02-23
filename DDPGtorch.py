@@ -15,11 +15,11 @@ class DDPG():
 
         self.save_dir = save_dir
 
-        self.actor = model.Actor(n_action, action_bound, layer_1_nodes, layer_2_nodes)
-        self.critic = model.Critic(layer_1_nodes, layer_2_nodes)
+        self.actor = Actor(n_action, action_bound, layer_1_nodes, layer_2_nodes)
+        self.critic = Critic(layer_1_nodes, layer_2_nodes)
 
-        self.actor_target = model.Actor(n_action, action_bound, layer_1_nodes, layer_2_nodes, model_name='actor_target')
-        self.critic_target = model.Critic(layer_1_nodes, layer_2_nodes, model_name='critic_target')
+        self.actor_target = Actor(n_action, action_bound, layer_1_nodes, layer_2_nodes)
+        self.critic_target = Critic(layer_1_nodes, layer_2_nodes)
 
         if self.PER:
             self.memory = Per_Memory(capacity=100000)
@@ -57,8 +57,7 @@ class DDPG():
             self.critic_loss += np.amax(critic_loss)
 
             # update target network
-            self.update_target_network(self.actor, self.actor_target, self.tau)
-            self.update_target_network(self.critic, self.critic_target, self.tau)
+            self.update_target_network(self.tau)
 
     def loss_actor(self, s_rep):
         self.actor.optimizer.zero_grad()
@@ -92,28 +91,42 @@ class DDPG():
         return td_error, critic_loss
 
     def preprocess(self, image):
-        # image = tf.cast(image, tf.float16)
-        # image = image[tf.newaxis, :]
-        # image = tf.image.resize(image, (96, 96))
-        # image = tf.keras.applications.mobilenet_v2.preprocess_input(image)
+        self.actor.eval()
+        image = T.tensor([image], dtype=T.float)
+
         return image
 
 
-    def update_target_network(self, network_params, target_network_params, tau=.001):
-        weights = network_params.get_weights()
-        target_weights = target_network_params.get_weights()
-        for i in range(len(target_weights)):  # set tau% of target model to be new weights
-            target_weights[i] = weights[i] * tau + target_weights[i] * (1 - tau)
-        target_network_params.set_weights(target_weights)
+    def update_target_network(self, tau=.001):
+        actor = self.actor.named_parameters()
+        actor_targ_params = self.actor_target.named_parameters()
+        actor_dict = dict(actor)
+        actor_targ_dict = dict(actor_targ_params)
 
-    def save_model(self):
-        self.actor.save_weights(os.path.join(self.save_dir, self.actor.model_name))
-        self.critic.save_weights(os.path.join(self.save_dir, self.critic.model_name))
-        self.actor_target.save_weights(os.path.join(self.save_dir, self.actor_target.model_name))
-        self.critic_target.save_weights(os.path.join(self.save_dir, self.critic_target.model_name))
+        for name in actor_dict:
+            actor_dict[name] = tau*actor_dict[name].clone() +\
+                                (1-tau)*actor_targ_dict[name].clone()
+        self.actor_target.load_state_dict(actor_dict)
 
-    def load_model(self):
-        self.actor.load_weights(os.path.join(self.save_dir, self.actor.model_name))
-        self.critic.load_weights(os.path.join(self.save_dir, self.critic.model_name))
-        self.actor_target.load_weights(os.path.join(self.save_dir, self.actor_target.model_name))
-        self.critic_target.load_weights(os.path.join(self.save_dir, self.critic_target.model_name))
+        critic = self.critic.named_parameters()
+        critic_targ_params = self.critic_target.named_parameters()
+        critic_dict = dict(critic)
+        critic_targ_dict = dict(critic_targ_params)
+
+        for name in critic_dict:
+            critic_dict[name] = tau*critic_dict[name].clone() +\
+                                (1-tau)*critic_targ_dict[name].clone()
+        self.critic_target.load_state_dict(critic_dict)
+
+
+    # def save_model(self):
+    #     self.actor.save_weights(os.path.join(self.save_dir, self.actor.model_name))
+    #     self.critic.save_weights(os.path.join(self.save_dir, self.critic.model_name))
+    #     self.actor_target.save_weights(os.path.join(self.save_dir, self.actor_target.model_name))
+    #     self.critic_target.save_weights(os.path.join(self.save_dir, self.critic_target.model_name))
+
+    # def load_model(self):
+    #     self.actor.load_weights(os.path.join(self.save_dir, self.actor.model_name))
+    #     self.critic.load_weights(os.path.join(self.save_dir, self.critic.model_name))
+    #     self.actor_target.load_weights(os.path.join(self.save_dir, self.actor_target.model_name))
+    #     self.critic_target.load_weights(os.path.join(self.save_dir, self.critic_target.model_name))
