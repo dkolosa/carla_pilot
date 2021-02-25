@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.optim import Adam
 
 class Actor(torch.nn.Module):
-    def __init__(self, num_state, num_actions, action_bound, layer_1, layer_2, lr=0.0001, checkpt='ppo'):
+    def __init__(self, num_state, num_actions, action_bound, layer_1=128, layer_2=128, lr=0.0001, checkpt='ddpg'):
         super(Actor, self).__init__()
 
         self.chkpt = checkpt + '_actor.ckpt'

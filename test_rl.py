@@ -4,7 +4,7 @@ import gym
 import gym.spaces
 import os, datetime
 from utils import OrnsteinUhlenbeck
-from torch_model.DDPGtorch import DDPG
+from DDPGtorch import DDPG
 
 from model import Actor, Critic
 

@@ -15,10 +15,10 @@ class DDPG():
 
         self.save_dir = save_dir
 
-        self.actor = Actor(n_action, action_bound, layer_1_nodes, layer_2_nodes)
-        self.critic = Critic(layer_1_nodes, layer_2_nodes)
+        self.actor = Actor(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes)
+        self.critic = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes)
 
-        self.actor_target = Actor(n_action, action_bound, layer_1_nodes, layer_2_nodes)
+        self.actor_target = Actor(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes)
         self.critic_target = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes)
 
         if self.PER:
@@ -43,68 +43,82 @@ class DDPG():
             s1_rep = T.tensor(np.array([_[3] for _ in mem]), dtype=T.float)
             d_rep = T.tensor(np.array([_[4] for _ in mem]), dtype=T.float)
 
+            # Calculate critic and train
+            targ_actions = self.actor_target.forward(s1_rep)
+            target_q = self.critic_target.forward(s1_rep, targ_actions)
+            q = self.critic(s_rep, a_rep)
 
-            td_error, critic_loss = self.loss_critic(a_rep, d_rep, r_rep, s1_rep, s_rep)
-            actor_loss = self.loss_actor(s_rep)
+            target_q = target_q.view(-1)
+            
+            y_i = r_rep + self.GAMMA * target_q * (1-d_rep)
+            y_i = y_i.view(self.batch_size, 1)
 
-            if self.PER:
-                for i in range(self.batch_size):
-                    update_error = np.abs(np.array(T.reduce_mean(td_error)))
-                    self.memory.update(idxs[i], update_error)
+            self.critic.optimizer.zero_grad()
+            critic_loss = T.nn.functional.mse_loss(y_i, q)
+            critic_loss.backward()
+            self.critic.optimizer.step()
 
-            self.sum_q += np.amax(T.squeeze(self.critic(s_rep, a_rep), 1))
-            self.actor_loss += np.amax(actor_loss)
-            self.critic_loss += np.amax(critic_loss)
+            # Calculate actor and train
+            self.actor.optimizer.zero_grad()
+            actions = self.actor(s_rep)
+            actor_loss = T.mean(-self.critic(s_rep, actions))
+            actor_loss.backward()
+            self.actor.optimizer.step()
 
             # update target network
             self.update_target_network(self.tau)
 
-    def loss_actor(self, s_rep):
-        self.actor.optimizer.zero_grad()
-        actions = self.actor((s_rep))
-        actor_loss = -T.mean(self.critic(s_rep, actions))
-        actor_loss.backward()
-        self.actor.optimizer.step()
-        return actor_loss
-
-    def loss_critic(self,a_rep, d_rep, r_rep, s1_rep, s_rep):
-        targ_actions = self.actor_target(s1_rep)
-        target_q = self.critic_target(s1_rep, targ_actions)
-        y_i = r_rep + self.GAMMA * target_q * (1 - d_rep)
-
-        self.ciritc.optimizer.zero_grad()
-        q = self.critic(s_rep, a_rep)
-        td_error = y_i - q
-        if not self.PER:
-            critic_loss = T.mean(T.square(td_error))
-        else:
-            critic_loss = T.mean(T.square(td_error) * self.isweight)
-        
-        ciritc_loss.backward()
-        self.critic.optimizer.step()
-        return td_error, critic_loss
-
     def update_target_network(self, tau=.001):
-        actor = self.actor.named_parameters()
-        actor_targ_params = self.actor_target.named_parameters()
-        actor_dict = dict(actor)
-        actor_targ_dict = dict(actor_targ_params)
+        actor_params = self.actor.named_parameters()
+        critic_params = self.critic.named_parameters()
+        target_actor_params = self.actor_target.named_parameters()
+        target_critic_params = self.critic_target.named_parameters()
 
-        for name in actor_dict:
-            actor_dict[name] = tau*actor_dict[name].clone() +\
-                                (1-tau)*actor_targ_dict[name].clone()
-        self.actor_target.load_state_dict(actor_dict)
+        critic_state_dict = dict(critic_params)
+        actor_state_dict = dict(actor_params)
+        target_critic_state_dict = dict(target_critic_params)
+        target_actor_state_dict = dict(target_actor_params)
 
-        critic = self.critic.named_parameters()
-        critic_targ_params = self.critic_target.named_parameters()
-        critic_dict = dict(critic)
-        critic_targ_dict = dict(critic_targ_params)
+        for name in critic_state_dict:
+            critic_state_dict[name] = tau*critic_state_dict[name].clone() + \
+                                (1-tau)*target_critic_state_dict[name].clone()
 
-        for name in critic_dict:
-            critic_dict[name] = tau*critic_dict[name].clone() +\
-                                (1-tau)*critic_targ_dict[name].clone()
-        self.critic_target.load_state_dict(critic_dict)
+        for name in actor_state_dict:
+             actor_state_dict[name] = tau*actor_state_dict[name].clone() + \
+                                 (1-tau)*target_actor_state_dict[name].clone()
 
+        self.critic_target.load_state_dict(critic_state_dict)
+        self.actor_target.load_state_dict(actor_state_dict)
+        # actor = self.actor.named_parameters()
+        # actor_targ_params = self.actor_target.named_parameters()
+        
+        # actor_dict = dict(actor)
+        # actor_targ_dict = dict(actor_targ_params)
+
+        # for name in actor_dict:
+        #     actor_dict[name] = tau*actor_dict[name].clone() +\
+        #                         (1-tau)*actor_targ_dict[name].clone()
+
+        # critic = self.critic.named_parameters()
+        # critic_targ_params = self.critic_target.named_parameters()
+        
+        # critic_dict = dict(critic)
+        # critic_targ_dict = dict(critic_targ_params)
+
+        # for name in critic_dict:
+        #     critic_dict[name] = tau*critic_dict[name].clone() +\
+        #                         (1-tau)*critic_targ_dict[name].clone()
+
+        # self.actor_target.load_state_dict(actor_dict)
+        # self.critic_target.load_state_dict(critic_dict)
+
+    def action(self, state):
+        self.actor.eval()
+        state = T.tensor([state], dtype=T.float)
+        act = self.actor.forward(state)
+
+        self.actor.train()
+        return act.cpu().detach().numpy()[0]
 
     # def save_model(self):
     #     self.actor.save_weights(os.path.join(self.save_dir, self.actor.model_name))
