@@ -1,9 +1,9 @@
 import numpy as np
 import torch as T
+import torch.functional as F
 from replay_memory import Per_Memory, Uniform_Memory
 import os
-from model import Actor, Critic
-
+from DDPG_reg import Actor, Critic
 class DDPG():
     def __init__(self,n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, PER, GAMMA,
                  tau, batch_size, save_dir):
@@ -19,7 +19,7 @@ class DDPG():
         self.critic = Critic(layer_1_nodes, layer_2_nodes)
 
         self.actor_target = Actor(n_action, action_bound, layer_1_nodes, layer_2_nodes)
-        self.critic_target = Critic(layer_1_nodes, layer_2_nodes)
+        self.critic_target = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes)
 
         if self.PER:
             self.memory = Per_Memory(capacity=100000)
@@ -37,10 +37,10 @@ class DDPG():
                 mem, idxs, self.isweight = self.memory.sample(self.batch_size)
             else:
                 mem = self.memory.sample(self.batch_size)
-            s_rep = T.tensor(np.reshape(np.array([_[0] for _ in mem]),(-1,96,96,3)), dtype=T.float)
+            s_rep = T.tensor(np.array([_[0] for _ in mem]), dtype=T.float)
             a_rep = T.tensor(np.array([_[1] for _ in mem]), dtype=T.float)
             r_rep = T.tensor(np.array([_[2] for _ in mem]), dtype=T.float)
-            s1_rep = T.tensor(np.reshape(np.array([_[3] for _ in mem]),(-1,96,96,3)), dtype=T.float)
+            s1_rep = T.tensor(np.array([_[3] for _ in mem]), dtype=T.float)
             d_rep = T.tensor(np.array([_[4] for _ in mem]), dtype=T.float)
 
 
@@ -65,12 +65,9 @@ class DDPG():
         actor_loss = -T.mean(self.critic(s_rep, actions))
         actor_loss.backward()
         self.actor.optimizer.step()
-        # actor_grad = tape.gradient(actor_loss, self.actor.trainable_variables)  # compute actor gradient
-        # self.actor.optimizer.apply_gradients(zip(actor_grad, self.actor.trainable_variables))
         return actor_loss
 
     def loss_critic(self,a_rep, d_rep, r_rep, s1_rep, s_rep):
-        
         targ_actions = self.actor_target(s1_rep)
         target_q = self.critic_target(s1_rep, targ_actions)
         y_i = r_rep + self.GAMMA * target_q * (1 - d_rep)
@@ -85,17 +82,7 @@ class DDPG():
         
         ciritc_loss.backward()
         self.critic.optimizer.step()
-
-        # critic_gradient = tape.gradient(critic_loss, self.critic.trainable_variables)
-        # self.critic.optimizer.apply_gradients(zip(critic_gradient, self.critic.trainable_variables))
         return td_error, critic_loss
-
-    def preprocess(self, image):
-        self.actor.eval()
-        image = T.tensor([image], dtype=T.float)
-
-        return image
-
 
     def update_target_network(self, tau=.001):
         actor = self.actor.named_parameters()
