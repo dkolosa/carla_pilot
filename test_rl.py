@@ -34,11 +34,11 @@ def test_rl():
     num_episodes = 1001
     PER = False
 
-    batch_size = 32
+    batch_size = 64
     #Pendulum
     layer_1_nodes, layer_2_nodes = 128, 128
 
-    tau = 0.01
+    tau = 0.001
     actor_lr, critic_lr = 0.0001, 0.001
     GAMMA = 0.99
     ep = 0.001
@@ -88,7 +88,7 @@ def test_rl():
             if j >= 201:
                 done = True
             if done:
-                # print(f'Episode: {i}, reward: {int(sum_reward)}, q_max: {agent.sum_q / float(j)},\nactor loss:{agent.actor_loss / float(j)}, critic loss:{agent.critic_loss/ float(j)}')
+                print(f'Episode: {i}, reward: {int(sum_reward)}')
                 # rewards.append(sum_reward)
                 print('===========')
                 if save:

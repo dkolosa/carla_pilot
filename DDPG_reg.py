@@ -2,9 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
+import numpy as np
 
 class Actor(torch.nn.Module):
-    def __init__(self, num_state, num_actions, action_bound, layer_1=128, layer_2=128, lr=0.0001, checkpt='ddpg'):
+    def __init__(self, num_state, num_actions, action_bound, layer_1=128, layer_2=128, lr=0.0001, checkpt='ddpg-actor'):
         super(Actor, self).__init__()
 
         self.chkpt = checkpt + '_actor.ckpt'
@@ -18,6 +19,14 @@ class Actor(torch.nn.Module):
         self.fc2 = nn.Linear(layer_1, layer_2)
         self.output = nn.Linear(layer_2, num_actions)
 
+        f1 = 1/np.sqrt(self.fc1.weight.data.size()[0])
+        f2 = 1/np.sqrt(self.fc2.weight.data.size()[0])
+
+        self.fc1.weight.data.uniform_(-f1, f1)
+        self.fc2.weight.data.uniform_(-f2, f2)
+        self.fc1.bias.data.uniform_(-f1, f1)
+        self.fc2.bias.data.uniform_(-f2, f2)
+        
         self.bn1 = nn.LayerNorm(self.layer_1)
         self.bn2 = nn.LayerNorm(self.layer_2)
 
@@ -38,7 +47,7 @@ class Actor(torch.nn.Module):
 
 
 class Critic(torch.nn.Module):
-    def __init__(self, n_states, n_action, layer_1, layer_2, lr=0.0001, checkpt='ppo'):
+    def __init__(self, n_states, n_action, layer_1, layer_2, lr=0.0001, checkpt='ddpg-critic'):
         super(Critic, self).__init__()
 
         # self.nam_state = num_state
@@ -50,6 +59,15 @@ class Critic(torch.nn.Module):
         self.fc2 = nn.Linear(layer_1, layer_2)
         self.output = nn.Linear(layer_2, 1)
 
+        f1 = 1/np.sqrt(self.fc1.weight.data.size()[0])
+        f2 = 1/np.sqrt(self.fc2.weight.data.size()[0])
+
+        self.fc1.weight.data.uniform_(-f1, f1)
+        self.fc2.weight.data.uniform_(-f2, f2)
+        self.fc1.bias.data.uniform_(-f1, f1)
+        self.fc2.bias.data.uniform_(-f2, f2)
+        self.output.bias.data.uniform_(-.003, .003)
+
         self.optimizer = Adam(self.parameters(), lr=lr)
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.to(self.device)
@@ -58,10 +76,9 @@ class Critic(torch.nn.Module):
     def forward(self,state, action):
         x = self.fc1(state)
         x = F.relu(self.bn1(x))
-        x = self.fc2(x)
+        x = F.relu(self.fc2(x))
         action = self.actfc2(action)
         x = F.relu(torch.add(x, action))
-        x = F.relu(self.fc2(x))
         out = self.output(x)
 
         return out
