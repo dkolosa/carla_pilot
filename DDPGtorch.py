@@ -110,8 +110,8 @@ class DDPG():
         self.actor.train()
         return act.cpu().detach().numpy()[0]
 
-    # def load_model(self):
-    #     self.actor.load_weights(os.path.join(self.save_dir, self.actor.model_name))
-    #     self.critic.load_weights(os.path.join(self.save_dir, self.critic.model_name))
-    #     self.actor_target.load_weights(os.path.join(self.save_dir, self.actor_target.model_name))
-    #     self.critic_target.load_weights(os.path.join(self.save_dir, self.critic_target.model_name))
+    def load_model(self):
+        self.actor.load_state_dict(T.load(os.path.join(self.save_dir, self.actor.model_name)))
+        self.critic.load_state_dict(T.load(os.path.join(self.save_dir, self.critic.model_name)))
+        self.actor_target.load_state_dict(T.load(os.path.join(self.save_dir, self.actor_target.model_name)))
+        self.critic_target.load_state_dict(T.load(os.path.join(self.save_dir, self.critic_target.model_name)))

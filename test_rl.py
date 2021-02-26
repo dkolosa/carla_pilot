@@ -5,7 +5,6 @@ import gym.spaces
 import os, datetime
 from utils import OrnsteinUhlenbeck
 from DDPGtorch import DDPG
-
 from model import Actor, Critic
 
 
@@ -38,7 +37,7 @@ def test_rl():
     #Pendulum
     layer_1_nodes, layer_2_nodes = 128, 128
 
-    tau = 0.001
+    tau = 0.01
     actor_lr, critic_lr = 0.0001, 0.001
     GAMMA = 0.99
     ep = 0.001
@@ -55,7 +54,7 @@ def test_rl():
 
     # If loading model, a gradient update must be called once before loading weights
     if load_models:
-        load_model(PER, agent, batch_size, env, ep, n_action, n_state)
+        load_model(agent)
 
     for i in range(num_episodes):
         s = env.reset()
@@ -65,10 +64,10 @@ def test_rl():
         agent.critic_loss = 0
         j = 0
 
-        while j < 201:
+        while True:
             env.render()
             a = agent.action(s)
-            a_clip = np.array(a) + actor_noise()
+            a_clip = a + actor_noise()
 
             s1, r, done, _ = env.step(a_clip)
 
@@ -93,24 +92,9 @@ def test_rl():
                 print('===========')
                 if save:
                     agent.save_model()
-                if sum_reward > 0:
-                    noise_decay = 0.001
                 break
 
-def load_model(PER, agent, batch_size, env, ep, n_action, n_state):
-    for i in range(batch_size + 1):
-        s = env.reset()
-        a = agent.actor(tf.convert_to_tensor([s], dtype=tf.float32))[0]
-        s1, r, done, _ = env.step(a)
-        # Store in replay memory
-        if PER:
-            error = abs(r + ep)  # D_i = max D
-            agent.memory.add(error, (
-                np.reshape(s, (n_state,)), np.reshape(a, (n_action,)), r, np.reshape(s1, (n_state,)), done))
-        else:
-            agent.memory.add(
-                (np.reshape(s, (n_state,)), np.reshape(a, (n_action,)), r, np.reshape(s1, (n_state,)), done))
-    agent.train()
+def load_model(agent):
     agent.load_model()
 
 
