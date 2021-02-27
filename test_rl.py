@@ -6,6 +6,7 @@ import os, datetime
 from utils import OrnsteinUhlenbeck
 from DDPGtorch import DDPG
 from model import Actor, Critic
+from TDDDPGtorch import TDDDPG
 
 
 def test_rl():
@@ -33,24 +34,24 @@ def test_rl():
     num_episodes = 1001
     PER = False
 
-    batch_size = 64
+    batch_size = 128
     #Pendulum
     layer_1_nodes, layer_2_nodes = 128, 128
 
-    tau = 0.01
-    actor_lr, critic_lr = 0.0001, 0.001
+    tau = 0.001
+    actor_lr, critic_lr = 0.001, 0.0001
     GAMMA = 0.99
     ep = 0.001
 
     actor_noise = OrnsteinUhlenbeck(np.zeros(n_action))
 
-    agent = DDPG(n_state, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, PER, GAMMA,
+    agent = TDDDPG(n_state, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, PER, GAMMA,
                  tau, batch_size, save_dir)
 
     agent.update_target_network(tau)
 
     load_models = False
-    save = False
+    save = True
 
     # If loading model, a gradient update must be called once before loading weights
     if load_models:
@@ -75,17 +76,15 @@ def test_rl():
             if PER:
                 error = 1 # D_i = max D
                 agent.memory.add(error, (
-                np.reshape(s, (n_state,)), np.reshape(a_clip, (n_action,)), r, np.reshape(s1, (n_state,)), done))
+                    (np.reshape(s, (n_state[0],)), np.reshape(a_clip, (n_action,)), r, np.reshape(s1, (n_state[0],)), done)))
             else:
                 agent.memory.add(
                     (np.reshape(s, (n_state[0],)), np.reshape(a_clip, (n_action,)), r, np.reshape(s1, (n_state[0],)), done))
-            agent.train()
+            agent.train(j)
 
             sum_reward += r
             s = s1
             j += 1
-            if j >= 201:
-                done = True
             if done:
                 print(f'Episode: {i}, reward: {int(sum_reward)}')
                 # rewards.append(sum_reward)

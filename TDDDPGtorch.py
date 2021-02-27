@@ -6,22 +6,25 @@ import os
 from DDPG_reg import Actor, Critic
 
 
-class DDPG():
+class TDDDPG():
     def __init__(self,n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, PER, GAMMA,
-                 tau, batch_size, save_dir):
+                 tau, batch_size, save_dir, policy_update_delay=2):
 
         self.GAMMA = GAMMA
         self.batch_size = batch_size
         self.tau = tau
         self.PER = PER
+        self.policy_update_delay = policy_update_delay
 
         self.save_dir = save_dir
 
         self.actor = Actor(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes)
         self.critic = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes)
-
+        self.critic_delay = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes,checkpt='critic-delay')
+        
         self.actor_target = Actor(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes)
         self.critic_target = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes)
+        self.critic_target_delay = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes,checkpt='actor_delay')
 
         self.update_target_network()
 
@@ -34,14 +37,10 @@ class DDPG():
         self.actor_loss = 0
         self.critic_loss = 0
 
-    def train(self):
+    def train(self, j):
         # sample from memory
         if self.batch_size < self.memory.get_count:
-            if self.PER:
-                mem, idxs, isweight = self.memory.sample(self.batch_size)
-                isweight = T.tensor(isweight, dtype=T.float).to(self.actor.device)
-            else:
-                mem = self.memory.sample(self.batch_size)
+            mem = self.memory.sample(self.batch_size)
             s_rep = T.tensor(np.array([_[0] for _ in mem]), dtype=T.float).to(self.actor.device)
             a_rep = T.tensor(np.array([_[1] for _ in mem]), dtype=T.float).to(self.actor.device)
             r_rep = T.tensor(np.array([_[2] for _ in mem]), dtype=T.float).to(self.actor.device)
@@ -50,69 +49,86 @@ class DDPG():
 
             self.critic.eval()
             self.actor.eval()
+            self.critic_delay.eval()
             self.actor_target.eval()
             self.critic_target.eval()
+            self.critic_target_delay.eval()
 
             # Calculate critic and train
             targ_actions = self.actor_target.forward(s1_rep)
+            # targ_actions = targ_actions + T.clamp(T.Tensor(np.random.normal(scale=.2)), -.5, .5)
+
             target_q = self.critic_target.forward(s1_rep, targ_actions)
+            target_q_delay = self.critic_target_delay.forward(s1_rep, targ_actions)
+
             q = self.critic.forward(s_rep, a_rep)
+            q_delay = self.critic_delay.forward(s_rep, a_rep)
 
             target_q = target_q.view(-1)
-            y_i = r_rep + self.GAMMA * target_q * (1-d_rep)
+            target_q_delay = target_q_delay.view(-1)
+
+            target_q_min = T.min(target_q, target_q_delay)
+
+            y_i = r_rep + self.GAMMA * target_q_min * (1-d_rep)
             y_i = y_i.view(self.batch_size, 1)
 
-            if self.PER:
-                td_error = y_i - q
-                update_error = T.abs(td_error).cpu().detach().numpy()
-                for i in range(self.batch_size):
-                    self.memory.update(idxs[i], update_error[i])
-
             self.critic.train()
+            self.critic_delay.train()
             self.critic.optimizer.zero_grad()
-            if not self.PER:
-                critic_loss = T.nn.functional.mse_loss(y_i, q)
-            else:
-                critic_loss = T.mean(T.square(td_error) * isweight)
+            self.critic_delay.optimizer.zero_grad()
+
+            critic_loss = T.nn.functional.mse_loss(y_i, q)
+            # critic_loss_delay = T.nn.functional.mse_loss(y_i, q_delay)
             critic_loss.backward()
             self.critic.optimizer.step()
+            self.critic_delay.optimizer.step()
             self.critic.eval()
+            self.critic_delay.eval()
 
             # Calculate actor and train
-            self.actor.optimizer.zero_grad()
-            actions = self.actor.forward(s_rep)
-            self.actor.train()
-            actor_loss = T.mean(-self.critic.forward(s_rep, actions))
-            actor_loss.backward()
-            self.actor.optimizer.step()
-            self.actor.eval()
+            if j % self.policy_update_delay == 0:
+                self.actor.optimizer.zero_grad()
+                actions = self.actor.forward(s_rep)
+                self.actor.train()
+                actor_loss = T.mean(-self.critic.forward(s_rep, actions))
+                actor_loss.backward()
+                self.actor.optimizer.step()
+                self.actor.eval()
 
-            # update target network
+            # update target networks
             self.update_target_network(self.tau)
 
     def update_target_network(self, tau=.001):
         actor = self.actor.named_parameters()
-        actor_targ_params = self.actor_target.named_parameters()
-        
+        actor_targ_params = self.actor_target.named_parameters()        
         actor_dict = dict(actor)
         actor_targ_dict = dict(actor_targ_params)
-
         for name in actor_dict:
             actor_dict[name] = tau*actor_dict[name].clone() +\
                                 (1-tau)*actor_targ_dict[name].clone()
 
+
         critic = self.critic.named_parameters()
-        critic_targ_params = self.critic_target.named_parameters()
-        
+        critic_targ_params = self.critic_target.named_parameters()        
         critic_dict = dict(critic)
         critic_targ_dict = dict(critic_targ_params)
-
         for name in critic_dict:
             critic_dict[name] = tau*critic_dict[name].clone() +\
                                 (1-tau)*critic_targ_dict[name].clone()
+        
+
+        critic_delay = self.critic_delay.named_parameters()
+        critic_targ_delay_params = self.critic_target_delay.named_parameters()
+        critic_delay_dict = dict(critic_delay)
+        critic_targ_delay_dict = dict(critic_targ_delay_params)
+        for name in critic_delay_dict:
+            critic_delay_dict[name] = tau*critic_delay_dict[name].clone() +\
+                                (1-tau)*critic_targ_delay_dict[name].clone()
+
 
         self.actor_target.load_state_dict(actor_dict)
         self.critic_target.load_state_dict(critic_dict)
+        self.critic_target_delay.load_state_dict(critic_delay_dict)
 
     def action(self, state):
         self.actor.eval()
