@@ -122,6 +122,8 @@ class DDPG():
         self.actor.train()
         return act.cpu().detach().numpy()[0]
 
+    def preprocess_image(self, image):
+
     def load_model(self):
         self.actor.load_state_dict(T.load(os.path.join(self.save_dir, self.actor.model_name)))
         self.critic.load_state_dict(T.load(os.path.join(self.save_dir, self.critic.model_name)))
