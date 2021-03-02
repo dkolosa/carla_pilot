@@ -4,3 +4,4 @@ models/
 *.ckpt
 *.hd5
 __pycache__/
+.DS_Store
