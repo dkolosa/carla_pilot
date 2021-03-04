@@ -23,6 +23,8 @@ class Carlaenv():
         self.img_width = 64
         self.inpuut_image = None
         self.int_step = 0
+        self.actor_list = []
+
 
         # Once we have a client we can retrieve the world that is currently
         self.world = self.client.get_world()
@@ -44,14 +46,13 @@ class Carlaenv():
         # Find the blueprint of the sensor.
         self.camera_bp = self.world.get_blueprint_library().find('sensor.camera.rgb')
         # Modify the attributes of the blueprint to set image resolution and field of view.
-        self.camera_bp.set_attribute('image_size_x', '64')
-        self.camera_bp.set_attribute('image_size_y', '64')
-        self.camera_bp.set_attribute('fov', '120')
+        self.camera_bp.set_attribute('image_size_x', f'{self.img_width}')
+        self.camera_bp.set_attribute('image_size_y', f'{self.img_height}')
+        self.camera_bp.set_attribute('fov', '110')
         # Set the time in seconds between sensor captures
-        self.camera_bp.set_attribute('sensor_tick', '2.0') 
+        # self.camera_bp.set_attribute('sensor_tick', '1.0') 
         # move the camera to the dash of the car
         camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
-
         self.sensor_cam = self.world.spawn_actor(self.camera_bp, camera_transform, attach_to=self.vehicle)
         self.actor_list.append(self.sensor_cam)
 
@@ -61,11 +62,7 @@ class Carlaenv():
         steering_angle = round(float(action[1]),3)
         braking = float(0)
         # Will have to scale/normalize the actions
-
         self.vehicle.apply_control(carla.VehicleControl(throttle=speed, steer=steering_angle, brake=braking))
-
-        # get the image (next state)
-        self.sensor_cam.listen(lambda data: process_image(data))
 
         # state is the image
         # position = self.vehicle.get_location()  # m
@@ -77,10 +74,8 @@ class Carlaenv():
         # distance = np.sqrt((self.destination_vec[0]-pos[0])**2 + (self.destination_vec[1]-pos[1])**2)
         distance = 100
         # calculate reward
-        done = False
-        reward = self.reward(distance,action)        
-        print('end step')
-        return self.input_image, reward, done
+        reward, done = self.reward(distance,action)        
+        return self.dash_cam, reward, done
 
     def reward(self, distance, action):
         '''The reward signal takes the current state of the agent into account.
@@ -88,30 +83,39 @@ class Carlaenv():
         sharp turns, driving too close to other vehicles)'''
 
         speed, steering, brake = action
+        reward_col = 0
+        done = False
         # check for collision
-        self.sensor_collision.listen(lambda data: check_collision(data))
+        # self.sensor_collision.listen(lambda data: check_collision(data))
         if self.collision:
             collision = 10
             self.collision = False
+            reward_col = 10
+            done = True
         # reward = destination + speed_limit_threshold - break_force - collisions - change streeing angle -
                     # jerk + distance_from_cars_threshold
-        reward = -distance
+        reward = -distance - reward_col
 
         if 1.0 <= distance <= 3.0:
             reward = 10
             done = True
 
 
-        return reward
+        return reward, done
 
     def reset(self):
+
+        for actor in self.actor_list:
+            if actor is not None:
+                actor.destroy()
+
         self.actor_list = []
-        # So let's tell the world to spawn the vehicle.
-        self.vehicle = self.world.spawn_actor(self.vehicle_bp, self.start_point)
+        start = random.choice(self.world.get_map().get_spawn_points())
+        self.vehicle = self.world.spawn_actor(self.vehicle_bp, start)
         self.collision = False
         self.setup_sensors()
         self.sensor_cam.listen(lambda data: self.process_image(data))
-        
+        self.actor_list.append(self.vehicle)
         self.int_step = 0
 
         # setup the collision sensor
@@ -125,14 +129,16 @@ class Carlaenv():
 
     def process_image(self,data):
         raw = np.array(data.raw_data)
-        self.input_image = raw.reshape((self.img_height, self.img_width, 4))
-    # will have to reshape data to an image (w x h x 4)
+        img_trans = raw.reshape((self.img_height, self.img_width, 4))
+        img_trans = img_trans[:, :, :3]
+        self.dash_cam = img_trans
+        # cv2.imshow('carla_pilot', img_trans)
 
     def check_collision(self,data):
         # check for collision and act accordingly
         self.collision = True
-        print('Collision!!!')
-        pass
+        print('Collision!!')
+
 
     def show_cam(self):
         fp_view = self.input_image[:,:,:3]

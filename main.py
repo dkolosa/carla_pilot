@@ -15,7 +15,7 @@ except IndexError:
     pass
 import carla
 
-FPS = 15
+FPS = 30
 
 
 # This sets up the environmnet, have to loop through the environment and update
@@ -29,8 +29,9 @@ if __name__ == '__main__':
     carla_env = Carlaenv()
     
     for i in range(num_episodes):
+        print('begin episode')
         s = carla_env.reset()
-        r = 0
+        reward = 0
         done = False
         j = 0
         while True:
@@ -39,13 +40,9 @@ if __name__ == '__main__':
             action = np.random.rand(3)
 
             time.sleep(1/FPS)
-            print(j)
-            s1, r, done = carla_env.step(action)
+            s1, reward, done = carla_env.step(action)
             j += 1
             s = s1
             if done:
                 print(f'Episode over {i} of {num_episodes}')
                 break
-
-        # for actor in carla_env.actor_list:
-        #     actor.destroy()
