@@ -19,8 +19,8 @@ class Carlaenv():
         self.client.set_timeout(2.0)
 
         # Image height and width
-        self.img_height = 128
-        self.img_width = 128
+        self.img_height = 480
+        self.img_width = 640
         self.inpuut_image = None
         self.int_step = 0
         self.actor_list = []
@@ -37,8 +37,10 @@ class Carlaenv():
         # The destination will be another spawn point on the map
         self.destination = random.choice(self.world.get_map().get_spawn_points())
         self.start_point = random.choice(self.world.get_map().get_spawn_points())
-        # self.destination_loc = self.destination.get_forward_vector()
-        # self.destination_vec = np.array([self.destination_loc[0], self.destination_loc[1]])
+        self.destination_loc = self.destination.location
+        start_dist = self.start_point.location
+        self.dest = [self.destination_loc.x, self.destination_loc.y]
+        self.dist_norm = np.sqrt((start_dist.x-self.dest[0])**2 + (start_dist.y-self.dest[1])**2)
 
 
     def setup_sensors(self):
@@ -59,22 +61,21 @@ class Carlaenv():
     def step(self, action):
         # process action
         speed = round(float(action[0]),3)
-        steering_angle = round(float(action[1]),3)
+        steering_angle = 0
         braking = float(0)
         # Will have to scale/normalize the actions
         self.vehicle.apply_control(carla.VehicleControl(throttle=speed, steer=steering_angle, brake=braking))
 
         # state is the image
-        # position = self.vehicle.get_location()  # m
+        position = self.vehicle.get_transform() # given in meters
         # velocity = self.vehicle.get_velocity()  # m/s
         # acceleration = self.vehicle.get_acceleration() # m/s^2
-        
-        # pos = np.array([position[0], position[1]])
-        
-        # distance = np.sqrt((self.destination_vec[0]-pos[0])**2 + (self.destination_vec[1]-pos[1])**2)
-        distance = 100
+                
+        distance = np.sqrt((self.dest[0]-position.location.x)**2 +
+                     (self.dest[1]-position.location.y)**2)
         # calculate reward
         reward, done = self.reward(distance,action)        
+
         return self.dash_cam, reward, done
 
     def reward(self, distance, action):
@@ -85,6 +86,7 @@ class Carlaenv():
         speed, steering, brake = action
         reward_col = 0
         done = False
+
         # check for collision
         # self.sensor_collision.listen(lambda data: check_collision(data))
         if self.collision:
@@ -92,15 +94,16 @@ class Carlaenv():
             self.collision = False
             reward_col = 10
             done = True
+
         # reward = destination + speed_limit_threshold - break_force - collisions - change streeing angle -
                     # jerk + distance_from_cars_threshold
-        reward = -distance - reward_col
+        reward = -(distance/self.dist_norm) - reward_col
 
         if 1.0 <= distance <= 3.0:
             reward = 10
             done = True
 
-
+        print(reward)
         return reward, done
 
     def reset(self):
