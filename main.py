@@ -36,7 +36,7 @@ if __name__ == '__main__':
         j = 0
         while True:
         # random action test
-        # carla_env.show_cam()
+            carla_env.show_cam()
             action = np.random.rand(3)
 
             time.sleep(1/FPS)
@@ -46,3 +46,7 @@ if __name__ == '__main__':
             if done:
                 print(f'Episode over {i} of {num_episodes}')
                 break
+
+    
+    # clean up after done
+    carla_env.cleanup()

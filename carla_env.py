@@ -19,8 +19,8 @@ class Carlaenv():
         self.client.set_timeout(2.0)
 
         # Image height and width
-        self.img_height = 64
-        self.img_width = 64
+        self.img_height = 128
+        self.img_width = 128
         self.inpuut_image = None
         self.int_step = 0
         self.actor_list = []
@@ -105,10 +105,8 @@ class Carlaenv():
 
     def reset(self):
 
-        for actor in self.actor_list:
-            if actor is not None:
-                actor.destroy()
 
+        self.cleanup()
         self.actor_list = []
         start = random.choice(self.world.get_map().get_spawn_points())
         self.vehicle = self.world.spawn_actor(self.vehicle_bp, start)
@@ -139,8 +137,13 @@ class Carlaenv():
         self.collision = True
         print('Collision!!')
 
+    def cleanup(self):
+        for actor in self.actor_list:
+            if actor is not None:
+                actor.destroy()
+
 
     def show_cam(self):
-        fp_view = self.input_image[:,:,:3]
+        fp_view = self.dash_cam[:,:,:3]
         cv2.imshow("",fp_view)
         cv2.waitKey(1)
