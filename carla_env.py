@@ -19,8 +19,8 @@ class Carlaenv():
         self.client.set_timeout(2.0)
 
         # Image height and width
-        self.img_height = 480
         self.img_width = 640
+        self.img_height = 480
         self.inpuut_image = None
         self.int_step = 0
         self.actor_list = []
@@ -61,8 +61,8 @@ class Carlaenv():
     def step(self, action):
         # process action
         speed = round(float(action[0]),3)
-        steering_angle = 0
-        braking = float(0)
+        steering_angle = round(float(action[1]),3)
+        braking = 0
         # Will have to scale/normalize the actions
         self.vehicle.apply_control(carla.VehicleControl(throttle=speed, steer=steering_angle, brake=braking))
 
@@ -90,7 +90,6 @@ class Carlaenv():
         # check for collision
         # self.sensor_collision.listen(lambda data: check_collision(data))
         if self.collision:
-            collision = 10
             self.collision = False
             reward_col = 10
             done = True
@@ -99,11 +98,10 @@ class Carlaenv():
                     # jerk + distance_from_cars_threshold
         reward = -(distance/self.dist_norm) - reward_col
 
-        if 1.0 <= distance <= 3.0:
-            reward = 10
+        if -.1 <= distance <= .1:
+            reward = 100
             done = True
 
-        print(reward)
         return reward, done
 
     def reset(self):

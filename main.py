@@ -34,7 +34,7 @@ if __name__ == '__main__':
         reward = 0
         done = False
         j = 0
-        while True:
+        while True: 
         # random action test
             carla_env.show_cam()
             action = np.random.rand(3)
