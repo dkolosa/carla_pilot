@@ -2,11 +2,15 @@ import sys, os, glob
 import numpy as np
 import cv2
 import time
+<<<<<<< HEAD
 import datetime
 import random
 from carla_env import Carlaenv
 from TDDDPG import TDDDPG
 from utils import OrnsteinUhlenbeck
+=======
+from carla_env import Carlaenv
+>>>>>>> env-dev-rewards
 
 # Based on the carla tutorial script tutorial.py
 
@@ -19,7 +23,9 @@ except IndexError:
     pass
 import carla
 
+FPS = 30
 
+<<<<<<< HEAD
 try:
     env = Carlaenv()
 
@@ -124,3 +130,38 @@ finally:
 #                 (np.reshape(s, (n_state,)), np.reshape(a, (n_action,)), r, np.reshape(s1, (n_state,)), done))
 #     agent.train()
 #     agent.load_model()
+=======
+
+# This sets up the environmnet, have to loop through the environment and update
+
+if __name__ == '__main__':
+
+    num_episodes = 10
+    iter_per_episode = 100
+
+    # init the DL things here
+    carla_env = Carlaenv()
+    
+    for i in range(num_episodes):
+        print('begin episode')
+        s = carla_env.reset()
+        reward = 0
+        done = False
+        j = 0
+        while True: 
+        # random action test
+            carla_env.show_cam()
+            action = np.random.rand(3)
+
+            time.sleep(1/FPS)
+            s1, reward, done = carla_env.step(action)
+            j += 1
+            s = s1
+            if done:
+                print(f'Episode over {i} of {num_episodes}')
+                break
+
+    
+    # clean up after done
+    carla_env.cleanup()
+>>>>>>> env-dev-rewards

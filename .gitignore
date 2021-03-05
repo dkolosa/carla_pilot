@@ -1,4 +1,9 @@
 .vscode/
-__pycache__/
 .idea/
+models/
+*.ckpt
+*.hd5
+__pycache__/
+.DS_Store
+models/
 carla/
