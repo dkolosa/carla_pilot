@@ -7,7 +7,6 @@ import random
 from carla_env import Carlaenv
 from TDDDPGtorch import TDDDPG
 from utils import OrnsteinUhlenbeck
-from carla_env import Carlaenv
 
 # Based on the carla tutorial script tutorial.py
 
@@ -30,10 +29,18 @@ if __name__ == '__main__':
     num_episodes = 10
     iter_per_episode = 100
 
+    ENV = 'carla'
     # init the DL things here
     carla_env = Carlaenv()
-    
-<<<<<<< HEAD
+
+    model_dir = os.path.join(os.getcwd(), 'models')
+    os.makedirs(os.path.join(model_dir, str(datetime.date.today()) + '-' + ENV), exist_ok=True)
+    save_dir = os.path.join(model_dir, str(datetime.date.today()) + '-' + ENV)
+
+    n_action = carla_env.action_space
+    n_states = carla_env.img_height * carla_env.img_width * carla_env.img_channels
+    action_bound = 1
+    batch_size = 2
     # Will have to add conv nets for processing
     # use conv and FC layers to process the images
 
@@ -47,17 +54,13 @@ if __name__ == '__main__':
 
     actor_noise = OrnsteinUhlenbeck(np.zeros(n_action))
 
-    agent = TDDDPG(n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, GAMMA,tau, batch_size, save_dir)
-
-    agent.update_target_network(agent.actor, agent.actor_target, agent.tau)
-    agent.update_target_network(agent.critic, agent.critic_target, agent.tau)
+    agent = TDDDPG(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, GAMMA,tau, batch_size, save_dir)
 
     load_models = False
     save = True
 
-    # If loading model, a gradient update must be called once before loading weights
-    # if load_models:
-    #     load_model(PER, agent, batch_size, env, ep, n_action, n_state)
+    if load_models:
+        agent.load_model()
 
     noise_decay = 1.0
 
@@ -67,39 +70,23 @@ if __name__ == '__main__':
     agent.critic_loss = 0
     j = 0
     for i in range(num_episodes):
-        s = env.reset()
-        while True:
-            # env.render()
+        s = carla_env.reset()
 
-            a = np.clip(agent.actor(tf.convert_to_tensor([s], dtype=tf.float32))[0] + actor_noise()*noise_decay, a_max=action_bound,
-                        a_min=-action_bound)
-            s1, r, done, _ = env.step(a)
+        while True:
+            carla_env.show_cam()
+            s_img = agent.preprocess_image(s)
+            a = agent.action(s_img)
+            s1, r, done = carla_env.step(a)
             # Store in replay memory
-            agent.memory.add(
-                (np.reshape(s, (n_state,)), np.reshape(a, (n_action,)), r, np.reshape(s1, (n_state,)), done))
+            # agent.memory.add(
+                # (np.reshape(s, (n_states,)), np.reshape(a, (n_action,)), r, np.reshape(s1, (n_states,)), done))
             # agent.train(j)
 
             sum_reward += r
             s = s1
-=======
-    for i in range(num_episodes):
-        print('begin episode')
-        s = carla_env.reset()
-        reward = 0
-        done = False
-        j = 0
-        while True: 
-        # random action test
-            carla_env.show_cam()
-            action = np.random.rand(3)
-
-            time.sleep(1/FPS)
-            s1, reward, done = carla_env.step(action)
->>>>>>> e03cfc29d16cbd218be63dff39383842df6cfb8a
             j += 1
-            s = s1
             if done:
-                print(f'Episode over {i} of {num_episodes}')
+                print(f'Episode over {i} of {num_episodes}, reward {r}')
                 break
 
     

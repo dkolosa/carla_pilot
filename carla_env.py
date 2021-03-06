@@ -15,18 +15,21 @@ import carla
 class Carlaenv():
     def __init__(self):
 
-        self.client = carla.Client('localhost', 2000)
+        self.client = carla.Client('127.0.0.1', 2000)
         self.client.set_timeout(2.0)
 
         # Image height and width
         self.img_width = 640
         self.img_height = 480
+        self.img_channels = 3
         self.inpuut_image = None
         self.int_step = 0
         self.actor_list = []
 
+        self.dash_cam = None
 
-        self.observation_space = np.array((self.img_height, self.img_width))
+        self.observation_space = (self.img_height, self.img_width)
+        self.action_space = 3
 
         # Once we have a client we can retrieve the world that is currently
         self.world = self.client.get_world()
@@ -107,8 +110,6 @@ class Carlaenv():
         return reward, done
 
     def reset(self):
-
-
         self.cleanup()
         self.actor_list = []
         start = random.choice(self.world.get_map().get_spawn_points())
@@ -125,15 +126,18 @@ class Carlaenv():
         self.sensor_collision = self.world.spawn_actor(self.collision_bp,collision_transform, attach_to=self.vehicle)
         self.actor_list.append(self.sensor_collision)
         self.sensor_collision.listen(lambda data: self.check_collision(data))
+       
         self.vehicle.apply_control(carla.VehicleControl(throttle=0.0, steer=0.0, reverse=True))
-        time.sleep(2)
+        while self.dash_cam is None:
+            time.sleep(0.01)
+
+        return self.dash_cam
 
     def process_image(self,data):
         raw = np.array(data.raw_data)
         img_trans = raw.reshape((self.img_height, self.img_width, 4))
         img_trans = img_trans[:, :, :3]
         self.dash_cam = img_trans
-        # cv2.imshow('carla_pilot', img_trans)
 
     def check_collision(self,data):
         # check for collision and act accordingly

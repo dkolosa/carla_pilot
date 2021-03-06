@@ -1,9 +1,9 @@
 import numpy as np
 import torch as T
 import torch.functional as F
-from replay_memory import Per_Memory, Uniform_Memory
+from replay_memory import Uniform_Memory
 import os
-from DDPG_reg import Actor, Critic
+from model_torch_vision import Actor, Critic
 
 
 class TDDDPG():
@@ -25,7 +25,7 @@ class TDDDPG():
         self.critic_target = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes)
         self.critic_target_delay = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes,checkpt='actor_delay')
 
-        self.update_target_network()
+        # self.update_target_network()
 
         self.memory = Uniform_Memory(buffer_size=100000)
 
@@ -135,10 +135,11 @@ class TDDDPG():
         return act.cpu().detach().numpy()[0]
 
     def preprocess_image(self,image):
-        image_swp = np.swapaxes(image, -1, 1)
+        # pytorch image: C x H x W
+        image_swp = np.swapaxes(image, -1, 0)
         image_swp = np.swapaxes(image_swp,-1, -2)
-        image_transform = T.from_numpy(image_swp)
-        return image_transform
+        # image_transform = T.from_numpy(image_swp)
+        return image_swp
 
     def load_model(self):
         self.actor.load_state_dict(T.load(os.path.join(self.save_dir, self.actor.model_name)))
