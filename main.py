@@ -7,6 +7,7 @@ import random
 from carla_env import Carlaenv
 from TDDDPGtorch import TDDDPG
 from utils import OrnsteinUhlenbeck
+from carla_env import Carlaenv
 
 # Based on the carla tutorial script tutorial.py
 
@@ -19,29 +20,20 @@ except IndexError:
     pass
 import carla
 
+FPS = 30
 
-try:
-    env = Carlaenv()
 
-    model_dir = os.path.join(os.getcwd(), 'models')
-    os.makedirs(os.path.join(model_dir, str(datetime.date.today()) + '-' + 'Carla'), exist_ok=True)
-    save_dir = os.path.join(model_dir, str(datetime.date.today()) + '-' + 'Carla')
+# This sets up the environmnet, have to loop through the environment and update
 
-    iter_per_episode = 200
-    # the state is an input image and current speed (+-1)
-    n_state = env.observation_space
-    # the acions are the steering angle and the speed (-1, +1)
-    n_action = 2
-    action_bound = 40   # the max mph limit
+if __name__ == '__main__':
 
-    env.seed(1234)
-    np.random.seed(1234)
+    num_episodes = 10
+    iter_per_episode = 100
 
-    num_episodes = 1001
-    PER = False
-
-    batch_size = 1
+    # init the DL things here
+    carla_env = Carlaenv()
     
+<<<<<<< HEAD
     # Will have to add conv nets for processing
     # use conv and FC layers to process the images
 
@@ -89,33 +81,27 @@ try:
 
             sum_reward += r
             s = s1
+=======
+    for i in range(num_episodes):
+        print('begin episode')
+        s = carla_env.reset()
+        reward = 0
+        done = False
+        j = 0
+        while True: 
+        # random action test
+            carla_env.show_cam()
+            action = np.random.rand(3)
+
+            time.sleep(1/FPS)
+            s1, reward, done = carla_env.step(action)
+>>>>>>> e03cfc29d16cbd218be63dff39383842df6cfb8a
             j += 1
+            s = s1
             if done:
-                print(f'Episode: {i}, reward: {int(sum_reward)}, q_max: {agent.sum_q / float(j)},\nactor loss:{agent.actor_loss / float(j)}, critic loss:{agent.critic_loss/ float(j)}')
-                # rewards.append(sum_reward)
-                print('===========')
-                if save:
-                    agent.save_model()
-                if sum_reward > 0:
-                    noise_decay = 0.001
-                    break  
+                print(f'Episode over {i} of {num_episodes}')
+                break
 
-finally:
-    print('destroy')
-#     env.destroy()
-
-# def load_model(PER, agent, batch_size, env, ep, n_action, n_state):
-#     for i in range(batch_size + 1):
-#         s = env.reset()
-#         a = agent.actor(tf.convert_to_tensor([s], dtype=tf.float32))[0]
-#         s1, r, done, _ = env.step(a)
-#         # Store in replay memory
-#         if PER:
-#             error = abs(r + ep)  # D_i = max D
-#             agent.memory.add(error, (
-#                 np.reshape(s, (n_state,)), np.reshape(a, (n_action,)), r, np.reshape(s1, (n_state,)), done))
-#         else:
-#             agent.memory.add(
-#                 (np.reshape(s, (n_state,)), np.reshape(a, (n_action,)), r, np.reshape(s1, (n_state,)), done))
-#     agent.train()
-#     agent.load_model()
+    
+    # clean up after done
+    carla_env.cleanup()
