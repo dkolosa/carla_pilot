@@ -15,7 +15,7 @@ class Carlaenv():
 
     def __init__(self):
 
-        self.client = carla.Client('localhost', 2000)
+        self.client = carla.Client('127.0.0.1', 2000)
         self.client.set_timeout(2.0)
 
         # Image height and width
