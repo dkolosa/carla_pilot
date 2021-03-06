@@ -7,13 +7,12 @@ from DDPG_reg import Actor, Critic
 
 
 class TDDDPG():
-    def __init__(self,n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, PER, GAMMA,
+    def __init__(self,n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, GAMMA,
                  tau, batch_size, save_dir, policy_update_delay=2):
 
         self.GAMMA = GAMMA
         self.batch_size = batch_size
         self.tau = tau
-        self.PER = PER
         self.policy_update_delay = policy_update_delay
 
         self.save_dir = save_dir
@@ -28,10 +27,7 @@ class TDDDPG():
 
         self.update_target_network()
 
-        if self.PER:
-            self.memory = Per_Memory(capacity=100000)
-        else:
-            self.memory = Uniform_Memory(buffer_size=100000)
+        self.memory = Uniform_Memory(buffer_size=100000)
 
         self.sum_q = 0
         self.actor_loss = 0
@@ -137,6 +133,12 @@ class TDDDPG():
 
         self.actor.train()
         return act.cpu().detach().numpy()[0]
+
+    def preprocess_image(self,image):
+        image_swp = np.swapaxes(image, -1, 1)
+        image_swp = np.swapaxes(image_swp,-1, -2)
+        image_transform = T.from_numpy(image_swp)
+        return image_transform
 
     def load_model(self):
         self.actor.load_state_dict(T.load(os.path.join(self.save_dir, self.actor.model_name)))

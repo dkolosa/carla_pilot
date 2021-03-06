@@ -5,7 +5,7 @@ import time
 import datetime
 import random
 from carla_env import Carlaenv
-from TDDDPG import TDDDPG
+from TDDDPGtorch import TDDDPG
 from utils import OrnsteinUhlenbeck
 
 # Based on the carla tutorial script tutorial.py
@@ -55,7 +55,7 @@ try:
 
     actor_noise = OrnsteinUhlenbeck(np.zeros(n_action))
 
-    agent = TDDDPG(n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, PER, GAMMA,tau, batch_size, save_dir)
+    agent = TDDDPG(n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, GAMMA,tau, batch_size, save_dir)
 
     agent.update_target_network(agent.actor, agent.actor_target, agent.tau)
     agent.update_target_network(agent.critic, agent.critic_target, agent.tau)
@@ -83,13 +83,8 @@ try:
                         a_min=-action_bound)
             s1, r, done, _ = env.step(a)
             # Store in replay memory
-            if PER:
-                error = 1 # D_i = max D
-                agent.memory.add(error, (
-                np.reshape(s, (n_state,)), np.reshape(a, (n_action,)), r, np.reshape(s1, (n_state,)), done))
-            else:
-                agent.memory.add(
-                    (np.reshape(s, (n_state,)), np.reshape(a, (n_action,)), r, np.reshape(s1, (n_state,)), done))
+            agent.memory.add(
+                (np.reshape(s, (n_state,)), np.reshape(a, (n_action,)), r, np.reshape(s1, (n_state,)), done))
             # agent.train(j)
 
             sum_reward += r
