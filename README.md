@@ -1,4 +1,8 @@
 # carla_pilot
 This application applies reinforcement learning on a car (agent) using the
-CARLA simulator. The goal is to train an agent to successfuly navigate the
-environment.
+CARLA simulator. 
+The current implementation uses T3DDPG Twin-Delayed Deep Deterministic Policy Gradients. The inputs of the neural networks is a first person (dash cam) view, and the output is the throttle, steering angle, and braking, respectively.
+The goal of this project is to train to successfuly navigate the environment to get to the target destination.
+
+Feel free to fork this repo for your own projects.
+
