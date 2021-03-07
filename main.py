@@ -77,7 +77,8 @@ if __name__ == '__main__':
                 carla_env.show_cam()
 
                 s_img = agent.preprocess_image(s)
-                a = np.clip(agent.action(s_img) + actor_noise(), -1, 1)
+                a = agent.action(s_img) + actor_noise()
+                print(a)
                 s1, r, done = carla_env.step(a)
 
 
@@ -97,8 +98,7 @@ if __name__ == '__main__':
                     break
 
         
-        # clean up after done
+        # clean up after your done playing
+    finally:
         carla_env.cleanup()
 
-    except KeyboardInterrupt:
-        carla_env.cleanup()
