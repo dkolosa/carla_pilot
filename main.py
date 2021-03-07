@@ -78,9 +78,7 @@ if __name__ == '__main__':
 
                 s_img = agent.preprocess_image(s)
                 a = agent.action(s_img) + actor_noise()
-                print(a)
                 s1, r, done = carla_env.step(a)
-
 
                 # Store in replay memory
                 agent.memory.add(

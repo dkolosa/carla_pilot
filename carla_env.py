@@ -84,11 +84,10 @@ class Carlaenv():
         distance = np.sqrt((self.dest[0]-position.location.x)**2 +
                      (self.dest[1]-position.location.y)**2)
         # calculate reward
-        reward, done = self.reward(distance,action, accel_cheange)
-        
+        reward, done = self.reward(distance,a
         measurements = [position.location.x, position.location.y, vel_vec.x, vel_vec.y, accel_vec.x, accel_vec.y]          
 
-        return self.dash_cam, measurements, reward, done
+        return self.dash_cam, reward, done
 
     def reward(self, distance, action, accel_cheange):
         '''The reward signal takes the current state of the agent into account.
