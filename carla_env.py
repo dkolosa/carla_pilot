@@ -19,7 +19,7 @@ class Carlaenv():
         self.client.set_timeout(2.0)
 
         # Image height and width
-        self.img_width = 640
+        self.img_width = 480
         self.img_height = 480
         self.img_channels = 3
         self.inpuut_image = None

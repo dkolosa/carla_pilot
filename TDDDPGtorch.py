@@ -25,7 +25,7 @@ class TDDDPG():
         self.critic_target = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes)
         self.critic_target_delay = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes,checkpt='actor_delay')
 
-        # self.update_target_network()
+        self.update_target_network()
 
         self.memory = Uniform_Memory(buffer_size=100000)
 
@@ -51,6 +51,7 @@ class TDDDPG():
             self.critic_target_delay.eval()
 
             # Calculate critic and train
+            # s1_rep = self.preprocess_image(s1_rep)
             targ_actions = self.actor_target.forward(s1_rep)
             # targ_actions = targ_actions + T.clamp(T.Tensor(np.random.normal(scale=.2)), -.5, .5)
 
@@ -130,7 +131,6 @@ class TDDDPG():
         self.actor.eval()
         state = T.tensor([state], dtype=T.float).to(self.actor.device)
         act = self.actor.forward(state).to(self.actor.device)
-
         self.actor.train()
         return act.cpu().detach().numpy()[0]
 
@@ -138,7 +138,6 @@ class TDDDPG():
         # pytorch image: C x H x W
         image_swp = np.swapaxes(image, -1, 0)
         image_swp = np.swapaxes(image_swp,-1, -2)
-        # image_transform = T.from_numpy(image_swp)
         return image_swp
 
     def load_model(self):
