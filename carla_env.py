@@ -50,6 +50,7 @@ class Carlaenv():
         self.start_time = None
         self.prev_accel = 0.0
         self.prev_steer = 0.0
+        self.distance = 0
 
     def setup_sensors(self):
         # setup a dashcam sensor
@@ -81,12 +82,12 @@ class Carlaenv():
         accel_vec = self.vehicle.get_acceleration() # m/s^2
         accel = math.sqrt(accel_vec.x**2 + accel_vec.y**2 + accel_vec.z**2)
         delta_accel = accel - self.prev_accel
-        distance = np.sqrt((self.dest[0]-position.location.x)**2 +
+        self.distance = np.sqrt((self.dest[0]-position.location.x)**2 +
                      (self.dest[1]-position.location.y)**2)
         # calculate reward
-        reward, done = self.reward(distance,a
+        reward, done = self.reward(self.distance, action, delta_accel)
         measurements = [position.location.x, position.location.y, vel_vec.x, vel_vec.y, accel_vec.x, accel_vec.y]          
-
+        self.prev_steer = steering_angle
         return self.dash_cam, reward, done
 
     def reward(self, distance, action, accel_cheange):
@@ -98,6 +99,8 @@ class Carlaenv():
         reward_col = 0
         done = False
 
+        delta_steering = abs(steering-self.prev_steer)
+
         # check for collision
         # self.sensor_collision.listen(lambda data: check_collision(data))
         if self.collision:
@@ -107,7 +110,7 @@ class Carlaenv():
 
         # reward = destination + speed_limit_threshold - break_force - collisions - change streeing angle -
                     # jerk + distance_from_cars_threshold
-        reward = -(distance/self.dist_norm) - reward_col - accel_cheange
+        reward = -(distance/self.dist_norm) - reward_col - accel_cheange*10 - delta_steering*10
 
         if -.1 <= distance <= .1:
             reward = 1

@@ -6,16 +6,20 @@ import numpy as np
 import torch as T
 
 class Actor(torch.nn.Module):
-    def __init__(self, num_state, num_actions, action_bound, layer_1=128, layer_2=128, lr=0.0001, checkpt='ddpg-actor'):
+    def __init__(self, state, num_actions, action_bound, batch_size, layer_1=128, layer_2=128, lr=0.0001, checkpt='ddpg-actor'):
         super(Actor, self).__init__()
 
         self.chkpt = checkpt + '_actor.ckpt'
 
         self.action_bound = action_bound
-        self.num_state = num_state
-        self.num_channels = 3
+        self.batch_size = batch_size
+        self.num_channels = state[0]
+        self.img_h = state[1]
+        self.img_w = state[2]
 
         kernel = 5
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
 
         self.cnn1 = nn.Conv2d(in_channels=self.num_channels, out_channels=64, kernel_size=kernel)
         self.cnn2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=kernel)
@@ -26,9 +30,8 @@ class Actor(torch.nn.Module):
         self.max2 = nn.MaxPool2d(5,2)
         self.max3 = nn.MaxPool2d(2,2)
 
-        #num_weights = (img_w - kernelfileter +2*padding)/stride + 1
+        #cnn_num_weights = (img_w - kernelfileter +2*padding)/stride + 1
 
-        # Can replace this with an image transformer (?? maybe that woudl be better than CNN)
         # self.image_cnn = nn.Sequential(
         #     self.cnn1,
         #     nn.MaxPool2d(2),
@@ -39,10 +42,12 @@ class Actor(torch.nn.Module):
         #     self.cnn4
         # )
 
+        fc1_inputs = self.calc_cnnweights()
+
         self.layer_1 = layer_1
         self.layer_2 = layer_2
         
-        self.fc1 = nn.Linear(373248, layer_1)
+        self.fc1 = nn.Linear(fc1_inputs, layer_1)
         self.fc2 = nn.Linear(layer_1, layer_2)
         self.output = nn.Linear(layer_2, num_actions)
 
@@ -58,7 +63,6 @@ class Actor(torch.nn.Module):
         self.bn2 = nn.LayerNorm(self.layer_2)
 
         self.optimizer = Adam(self.parameters(), lr=lr)
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.to(self.device)
 
     def forward(self, image):
@@ -69,10 +73,8 @@ class Actor(torch.nn.Module):
         x = F.relu(self.cnn3(x))
         x = self.max3(x)
         x = F.relu(self.cnn4(x))
-
         # x = self.image_cnn(image)
         x = x.view(x.shape[0], -1)
-        # print(f'\nout shp: {x.shape}\n')
         x = self.fc1(x)
         x = F.relu(self.bn1(x))
         x = self.fc2(x)
@@ -84,19 +86,29 @@ class Actor(torch.nn.Module):
     def save_model(self):
         torch.save(self.state_dict(), self.chkpt)
 
+    def calc_cnnweights(self):
+        input = torch.zeros((1, self.num_channels, self.img_h, self.img_w))
+        x = self.cnn1(input)
+        x = self.max1(x)
+        x = self.cnn2(x)
+        x = self.max2(x)
+        x = self.cnn3(x)
+        x = self.max3(x)
+        x = self.cnn4(x)
+        x = x.view(x.shape[0], -1)
+        return x.shape[1]
+
 
 class Critic(torch.nn.Module):
-    def __init__(self, n_states, n_action, layer_1, layer_2, lr=0.0001, checkpt='ddpg-critic'):
+    def __init__(self, state, n_action, layer_1, layer_2, lr=0.0001, checkpt='ddpg-critic'):
         super(Critic, self).__init__()
 
         # self.nam_state = num_state
         self.chkpt = checkpt + '_critic.ckpt'
 
-        self.fc1 = nn.Linear(307328, layer_1)
-        self.actfc2 = nn.Linear(n_action, layer_2)
-        self.bn1 = nn.LayerNorm(layer_1)
-        self.fc2 = nn.Linear(layer_1, layer_2)
-        self.output = nn.Linear(layer_2, 1)
+        self.num_channels = state[0]
+        self.img_h = state[1]
+        self.img_w = state[2]
 
         # self.cnn1 = CNN(3 , 64, 5)
         # self.cnn2 = CNN(64, 128, 5)
@@ -111,6 +123,13 @@ class Critic(torch.nn.Module):
         self.max2 = nn.MaxPool2d(5,2)
         self.max3 = nn.MaxPool2d(5,2)
 
+        fc1_inputs = self.calc_cnnweights()
+
+        self.fc1 = nn.Linear(fc1_inputs, layer_1)
+        self.actfc2 = nn.Linear(n_action, layer_2)
+        self.bn1 = nn.LayerNorm(layer_1)
+        self.fc2 = nn.Linear(layer_1, layer_2)
+        self.output = nn.Linear(layer_2, 1)
         f1 = 1/np.sqrt(self.fc1.weight.data.size()[0])
         f2 = 1/np.sqrt(self.fc2.weight.data.size()[0])
 
@@ -136,7 +155,6 @@ class Critic(torch.nn.Module):
         x = self.max3(x)
         x = F.relu(self.cnn4(x))
         x = x.view(x.shape[0], -1)
-        # print(f'\n crit shpae: {x.shape}\n')
         x = self.fc1(x)
         # x = torch.add(x, sensor)
         x = F.relu(self.bn1(x))
@@ -148,6 +166,19 @@ class Critic(torch.nn.Module):
 
     def save_model(self):
         torch.save(self.state_dict(), self.chkpt)
+
+    def calc_cnnweights(self):
+        input = torch.zeros((1, self.num_channels, self.img_h, self.img_w))
+        x = self.cnn1(input)
+        x = self.max1(x)
+        x = self.cnn2(x)
+        x = self.max2(x)
+        x = self.cnn3(x)
+        x = self.max3(x)
+        x = self.cnn4(x)
+        x = x.view(x.shape[0], -1)
+        return x.shape[1]
+
 
 
 class CNN(torch.nn.Module):

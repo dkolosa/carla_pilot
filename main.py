@@ -27,11 +27,10 @@ FPS = 30
 if __name__ == '__main__':
 
     try:
-        num_episodes = 100
+        num_episodes = 201
         iter_per_episode = 100
 
         ENV = 'carla'
-        # init the DL things here
         carla_env = Carlaenv()
 
         model_dir = os.path.join(os.getcwd(), 'models')
@@ -39,8 +38,8 @@ if __name__ == '__main__':
         save_dir = os.path.join(model_dir, str(datetime.date.today()) + '-' + ENV)
 
         n_action = carla_env.action_space
-        n_states = carla_env.img_height * carla_env.img_width * carla_env.img_channels
-        action_bound = 1
+        n_states = (carla_env.img_channels, carla_env.img_height, carla_env.img_width)
+        action_bound = .5
         batch_size = 2
         # Will have to add conv nets for processing
         # use conv and FC layers to process the images
@@ -57,7 +56,7 @@ if __name__ == '__main__':
 
         agent = TDDDPG(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, GAMMA,tau, batch_size, save_dir)
 
-        load_models = False
+        load_models = True
         save = True
 
         if load_models:
@@ -92,11 +91,13 @@ if __name__ == '__main__':
                 s = s1
                 j += 1
                 if done:
-                    print(f'Episode over {i} of {num_episodes}, reward {r}')
+                    agent.save_model()
+                    print(f'Episode over {i} of {num_episodes}, distance from target:{carla_env.distance:.3f} reward {r}')
                     break
 
         
         # clean up after your done playing
     finally:
         carla_env.cleanup()
+
 

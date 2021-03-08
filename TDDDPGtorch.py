@@ -17,7 +17,7 @@ class TDDDPG():
 
         self.save_dir = save_dir
 
-        self.actor = Actor(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes)
+        self.actor = Actor(n_states, n_action, action_bound,batch_size, layer_1_nodes, layer_2_nodes)
         self.critic = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes)
         self.critic_delay = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes,checkpt='critic-delay')
         
@@ -138,13 +138,13 @@ class TDDDPG():
         # pytorch image: C x H x W
         image_swp = np.swapaxes(image, -1, 0)
         image_swp = np.swapaxes(image_swp,-1, -2)
-        return image_swp
+        return image_swp/255.0
 
     def load_model(self):
-        self.actor.load_state_dict(T.load(os.path.join(self.save_dir, self.actor.model_name)))
-        self.critic.load_state_dict(T.load(os.path.join(self.save_dir, self.critic.model_name)))
-        self.actor_target.load_state_dict(T.load(os.path.join(self.save_dir, self.actor_target.model_name)))
-        self.critic_target.load_state_dict(T.load(os.path.join(self.save_dir, self.critic_target.model_name)))
+        self.actor.load_state_dict(T.load(os.path.join(self.save_dir, self.actor.chkpt)))
+        self.critic.load_state_dict(T.load(os.path.join(self.save_dir, self.critic.chkpt)))
+        self.actor_target.load_state_dict(T.load(os.path.join(self.save_dir, self.actor_target.chkpt)))
+        self.critic_target.load_state_dict(T.load(os.path.join(self.save_dir, self.critic_target.chkpt)))
 
     def save_model(self):
         self.actor.save_model()
