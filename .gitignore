@@ -8,3 +8,4 @@ __pycache__/
 models/
 carla/
 .DS_Store
+tf_models/
