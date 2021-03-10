@@ -88,7 +88,7 @@ class Carlaenv():
         reward, done = self.reward(self.distance, action, delta_accel)
         measurements = [position.location.x, position.location.y, vel_vec.x, vel_vec.y, accel_vec.x, accel_vec.y]          
         self.prev_steer = steering_angle
-        return self.dash_cam, reward, done
+        return self.dash_cam, measurements, reward, done
 
     def reward(self, distance, action, accel_cheange):
         '''The reward signal takes the current state of the agent into account.
@@ -143,7 +143,7 @@ class Carlaenv():
         while self.dash_cam is None:
             time.sleep(0.01)
 
-        return self.dash_cam
+        return self.dash_cam, measurements 
 
     def process_image(self,data):
         raw = np.array(data.raw_data)
