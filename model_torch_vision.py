@@ -16,7 +16,7 @@ class Actor(torch.nn.Module):
         self.num_channels = state[0]
         self.img_h = state[1]
         self.img_w = state[2]
-        self.n_sensors = n_sensors
+        self.n_sensors = 6
 
         kernel = 5
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -25,9 +25,8 @@ class Actor(torch.nn.Module):
         self.cnn1 = nn.Conv2d(in_channels=self.num_channels, out_channels=64, kernel_size=kernel)
         self.cnn2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=kernel)
         self.cnn3 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=kernel)
-        self.cnn4 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=2)
-        self.cnn5 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=2)
-        self.cnn6 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2)
+        self.cnn4 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=5)
+        self.cnn5 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=5)
 
         self.max1 = nn.MaxPool2d(5,2)
         self.max2 = nn.MaxPool2d(5,2)
@@ -41,16 +40,16 @@ class Actor(torch.nn.Module):
         self.layer_1 = layer_1
         self.layer_2 = layer_2
         
-        self.layer_3 = 256
-        self.layer_4 = 128
+        layer_3 = 128
+        layer_4 = 128
 
         self.fc1 = nn.Linear(fc1_inputs, layer_1)
         self.fc2 = nn.Linear(layer_1, layer_2)
-        self.fc3 = nn.Linear(layer_2, self.layer_3)
-        self.fc4 = nn.Linear(self.layer_3, self.layer_4)
-        self.output = nn.Linear(self.layer_4, num_actions)
+        self.fc3 = nn.Linear(layer_2, layer_3)
+        self.fc4 = nn.Linear(layer_3, layer_4)
+        self.output = nn.Linear(layer_4, num_actions)
 
-        self.fc_measurement = nn.Linear(n_sensors,self.layer_4)
+        self.fc_measurement = nn.Linear(n_sensors,layer_3)
 
         # Initializers
         f1 = 1/np.sqrt(self.fc1.weight.data.size()[0])
@@ -70,8 +69,8 @@ class Actor(torch.nn.Module):
         self.bn1 = nn.LayerNorm(self.layer_1)
         self.bn2 = nn.LayerNorm(self.layer_2)
 
-        self.bn3 = nn.LayerNorm(self.layer_1)
-        self.bn4 = nn.LayerNorm(self.layer_2)
+        self.bn3 = nn.LayerNorm(layer_3)
+        self.bn4 = nn.LayerNorm(layer_4)
 
         self.optimizer = Adam(self.parameters(), lr=lr)
         self.to(self.device)
@@ -86,20 +85,18 @@ class Actor(torch.nn.Module):
         x = F.relu(self.cnn4(x))
         x = self.max4(x)
         x = F.relu(self.cnn5(x))
-        x = F.relu(self.cnn6(x))
 
         # x = self.image_cnn(image)
         x = x.view(x.shape[0], -1)
         x = self.fc1(x)
         x = F.relu(self.bn1(x))
-        x = self.fc2(x)
-        x = F.relu(self.bn2(x))
+        x = F.relu(self.bn2(self.fc2(x)))
 
-        measurement = self.fc_measurement(sensors)
-        x = F.relu(torch.add(x, measurement))
-        x = F.relu(self.bn3(self.fc3))
-        x = F.relu(self.bn4(self.fc4))
-        
+        sensor = self.fc_measurement(sensors)
+        x = F.relu(torch.add(x, sensor))
+        #have to connect the fc3 to action
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
         out = torch.tanh(self.output(x))
         return out*self.action_bound
 
@@ -117,7 +114,6 @@ class Actor(torch.nn.Module):
         x = self.cnn4(x)
         x = self.max4(x)
         x = self.cnn5(x)
-        x = self.cnn6(x)
         x = x.view(x.shape[0], -1)
         return x.shape[1]
 
@@ -133,22 +129,22 @@ class Critic(torch.nn.Module):
         self.img_h = state[1]
         self.img_w = state[2]
         self.n_sensors = n_sensors
+        kernel = 5
 
         self.cnn1 = nn.Conv2d(in_channels=self.num_channels, out_channels=64, kernel_size=kernel)
-        self.cnn2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=kernel)
-        self.cnn3 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=kernel)
-        self.cnn4 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=2)
-        self.cnn5 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=2)
-        self.cnn6 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=2)
+        self.cnn2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=5)
+        self.cnn3 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=5)
+        self.cnn4 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=5)
+        self.cnn5 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=5)
 
-        self.max1 = nn.MaxPool2d(5,2)
-        self.max2 = nn.MaxPool2d(5,2)
-        self.max3 = nn.MaxPool2d(5,2)
+        self.max1 = nn.MaxPool2d(2,2)
+        self.max2 = nn.MaxPool2d(2,2)
+        self.max3 = nn.MaxPool2d(2,2)
         self.max4 = nn.MaxPool2d(2,2)
 
         fc1_inputs = self.calc_cnnweights()
 
-        layer_3 = 256
+        layer_3 = 128
         layer_4 = 128
 
         self.fc1 = nn.Linear(fc1_inputs, layer_1)
@@ -158,8 +154,8 @@ class Critic(torch.nn.Module):
         self.fc2 = nn.Linear(layer_1, layer_2)
 
         self.fc_measurement = nn.Linear(n_sensors, layer_3) 
-        self.fc3 = nn.Linear(layer_3)
-        self.fc4 = nn.Linear(layer_4)
+        self.fc3 = nn.Linear(layer_2,layer_3)
+        self.fc4 = nn.Linear(layer_3,layer_4)
         
         self.output = nn.Linear(layer_4, 1)
 

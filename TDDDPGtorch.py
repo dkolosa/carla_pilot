@@ -132,7 +132,7 @@ class TDDDPG():
     def action(self, state, sensor):
         self.actor.eval()
         state = T.tensor([state], dtype=T.float).to(self.actor.device)
-        sensor = T.tensor([sensor], dtype=T.float).to(self.actor.device)
+        sensor = T.tensor([np.array(sensor)], dtype=T.float).to(self.actor.device)
         act = self.actor.forward(state, sensor).to(self.actor.device)
         self.actor.train()
         return act.cpu().detach().numpy()[0]

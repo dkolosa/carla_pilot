@@ -21,7 +21,7 @@ class Carlaenv():
 
         # Image height and width
         self.img_width = 480
-        self.img_height = 480
+        self.img_height = 360
         self.img_channels = 3
         self.inpuut_image = None
         self.int_step = 0
@@ -143,6 +143,7 @@ class Carlaenv():
         while self.dash_cam is None:
             time.sleep(0.01)
 
+        measurements = [0,0,0,0,0,0]
         return self.dash_cam, measurements 
 
     def process_image(self,data):

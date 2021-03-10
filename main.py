@@ -58,7 +58,7 @@ if __name__ == '__main__':
         agent = TDDDPG(n_states, n_sensors, n_action, action_bound, layer_1_nodes, 
             layer_2_nodes, actor_lr, critic_lr, GAMMA,tau, batch_size, save_dir)
 
-        load_models = True
+        load_models = False
         save = True
 
         if load_models:
@@ -84,7 +84,7 @@ if __name__ == '__main__':
                 # Store in replay memory
                 agent.memory.add(
                     (np.reshape(s, (carla_env.img_channels,carla_env.img_height, 
-                    carla_env.img_width,)), np.reshape(sensors, (n_sensors,)) np.reshape(a, (n_action,)), r, 
+                    carla_env.img_width,)), np.reshape(sensors, (n_sensors,)), np.reshape(a, (n_action,)), r, 
                     np.reshape(s1, (carla_env.img_channels,carla_env.img_height, 
                     carla_env.img_width,)), np.reshape(sensors_1, (n_sensors,)), done))
                 agent.train(j)
