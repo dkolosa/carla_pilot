@@ -1,8 +1,9 @@
+import os
 import numpy as np
+import PIL
 import torch as T
 import torch.functional as F
 from replay_memory import Uniform_Memory
-import os
 from model_torch_vision import Actor, Critic
 
 
@@ -147,5 +148,5 @@ class TDDDPG():
         self.critic_target.load_state_dict(T.load(os.path.join(self.save_dir, self.critic_target.chkpt)))
 
     def save_model(self):
-        self.actor.save_model()
-        self.critic.save_model()
+        self.actor.save_model(self.save_dir)
+        self.critic.save_model(self.save_dir)

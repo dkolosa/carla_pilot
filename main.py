@@ -27,7 +27,7 @@ FPS = 30
 if __name__ == '__main__':
 
     try:
-        num_episodes = 201
+        num_episodes = 1000
         iter_per_episode = 100
 
         ENV = 'carla'
@@ -40,7 +40,7 @@ if __name__ == '__main__':
         n_action = carla_env.action_space
         n_states = (carla_env.img_channels, carla_env.img_height, carla_env.img_width)
         action_bound = .5
-        batch_size = 2
+        batch_size = 3
         # Will have to add conv nets for processing
         # use conv and FC layers to process the images
 
@@ -76,7 +76,8 @@ if __name__ == '__main__':
                 carla_env.show_cam()
 
                 s_img = agent.preprocess_image(s)
-                a = agent.action(s_img) + actor_noise()
+                a = agent.action(s_img) + actor_noise()*.1
+                print(a)
                 s1, r, done = carla_env.step(a)
 
                 # Store in replay memory

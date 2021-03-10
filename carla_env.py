@@ -20,8 +20,8 @@ class Carlaenv():
         self.client.set_timeout(2.0)
 
         # Image height and width
-        self.img_width = 480
-        self.img_height = 480
+        self.img_width = 320
+        self.img_height = 240
         self.img_channels = 3
         self.inpuut_image = None
         self.int_step = 0
@@ -51,6 +51,7 @@ class Carlaenv():
         self.prev_accel = 0.0
         self.prev_steer = 0.0
         self.distance = 0
+        self.crossed_lane = []
 
     def setup_sensors(self):
         # setup a dashcam sensor
@@ -60,17 +61,21 @@ class Carlaenv():
         self.camera_bp.set_attribute('image_size_x', f'{self.img_width}')
         self.camera_bp.set_attribute('image_size_y', f'{self.img_height}')
         self.camera_bp.set_attribute('fov', '110')
-        # Set the time in seconds between sensor captures
-        # self.camera_bp.set_attribute('sensor_tick', '1.0') 
         # move the camera to the dash of the car
         camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
         self.sensor_cam = self.world.spawn_actor(self.camera_bp, camera_transform, attach_to=self.vehicle)
         self.actor_list.append(self.sensor_cam)
 
+        lane_bp = self.world.get_blueprint_library().find('sensor.other.lane_invasion')
+        self.lane_sensor = self.world.spawn_actor(lane_bp, camera_transform, attach_to=self.vehicle)
+        self.lane_sensor.listen(lambda event:self.on_lane(event))
+
     def step(self, action):
         # process action
-        speed = round(float(action[0]),3)
-        steering_angle = round(float(action[1]),3)
+        speed = round(float(action[0]),4)
+        steering_angle = round(float(action[1]),4)
+        # set the braking to zero for now
+        # braking = round(float(action[2]),4)
         braking = 0
         # Will have to scale/normalize the actions
         self.vehicle.apply_control(carla.VehicleControl(throttle=speed, steer=steering_angle, brake=braking))
@@ -92,8 +97,8 @@ class Carlaenv():
 
     def reward(self, distance, action, accel_cheange):
         '''The reward signal takes the current state of the agent into account.
-        The agent is penalized for bad driving habits (hard braking, high acceleration,
-        sharp turns, driving too close to other vehicles)'''
+        The agent is penalized for bad driving habits (large acceleration changes,
+        sharp turns, crossing over lanes)'''
 
         speed, steering, brake = action
         reward_col = 0
@@ -105,12 +110,16 @@ class Carlaenv():
         # self.sensor_collision.listen(lambda data: check_collision(data))
         if self.collision:
             self.collision = False
-            reward_col = 1
+            reward_col = 10
             done = True
 
-        # reward = destination + speed_limit_threshold - break_force - collisions - change streeing angle -
-                    # jerk + distance_from_cars_threshold
-        reward = -(distance/self.dist_norm) - reward_col - accel_cheange*10 - delta_steering*10
+        # reward = destination + speed_limit_threshold - break_force - collisions - large change streeing angle -
+                    # jerk 
+
+        reward = -(distance/self.dist_norm) - reward_col - accel_cheange - delta_steering*10 - len(self.crossed_lane)
+
+        if len(self.crossed_lane) > 0:
+            self.crossed_lane = []
 
         if -.1 <= distance <= .1:
             reward = 1
@@ -155,6 +164,10 @@ class Carlaenv():
         # check for collision and act accordingly
         self.collision = True
         print('Collision!!')
+
+    def on_lane(self, data):
+        self.crossed_lane = data.crossed_lane_markings
+
 
     def cleanup(self):
         for actor in self.actor_list:
