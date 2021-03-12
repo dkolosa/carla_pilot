@@ -58,7 +58,7 @@ if __name__ == '__main__':
         agent = TDDDPG(n_states, n_sensors, n_action, action_bound, layer_1_nodes, 
             layer_2_nodes, actor_lr, critic_lr, GAMMA,tau, batch_size, save_dir)
 
-        load_models = False
+        load_models = True
         save = True
 
         if load_models:
