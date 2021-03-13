@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
         agent = TDDDPG(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, GAMMA,tau, batch_size, save_dir)
 
-        load_models = True
+        load_models = False
         save = True
 
         if load_models:
@@ -70,22 +70,26 @@ if __name__ == '__main__':
         agent.critic_loss = 0
         j = 0
         for i in range(num_episodes):
-            s = carla_env.reset()
+            s, s2 = carla_env.reset()
 
             while True:
                 carla_env.show_cam()
+                carla_env.show_cam2()
 
                 s_img = agent.preprocess_image(s)
-                a = agent.action(s_img) + actor_noise()*.1
-                print(a)
-                s1, r, done = carla_env.step(a)
+                s2_img = agent.preprocess_image(s2)
+                a = agent.action(s_img, s2_img) + actor_noise()*.1
+                s1, s1_img2, r, done = carla_env.step(a)
 
                 # Store in replay memory
                 agent.memory.add(
                     (np.reshape(s, (carla_env.img_channels,carla_env.img_height, 
+                    carla_env.img_width,)), np.reshape(s2_img, (carla_env.img_channels,carla_env.img_height, 
                     carla_env.img_width,)), np.reshape(a, (n_action,)), r, 
                     np.reshape(s1, (carla_env.img_channels,carla_env.img_height, 
+                    carla_env.img_width,)), np.reshape(s1_img2, (carla_env.img_channels,carla_env.img_height, 
                     carla_env.img_width,)), done))
+
                 agent.train(j)
 
                 sum_reward += r

@@ -39,10 +39,12 @@ class TDDDPG():
         if self.batch_size < self.memory.get_count:
             mem = self.memory.sample(self.batch_size)
             s_rep = T.tensor(np.array([_[0] for _ in mem]), dtype=T.float).to(self.actor.device)
-            a_rep = T.tensor(np.array([_[1] for _ in mem]), dtype=T.float).to(self.actor.device)
-            r_rep = T.tensor(np.array([_[2] for _ in mem]), dtype=T.float).to(self.actor.device)
-            s1_rep = T.tensor(np.array([_[3] for _ in mem]), dtype=T.float).to(self.actor.device)
-            d_rep = T.tensor(np.array([_[4] for _ in mem]), dtype=T.float).to(self.actor.device)
+            s_rep_2 = T.tensor(np.array([_[1] for _ in mem]), dtype=T.float).to(self.actor.device)
+            a_rep = T.tensor(np.array([_[2] for _ in mem]), dtype=T.float).to(self.actor.device)
+            r_rep = T.tensor(np.array([_[3] for _ in mem]), dtype=T.float).to(self.actor.device)
+            s1_rep = T.tensor(np.array([_[4] for _ in mem]), dtype=T.float).to(self.actor.device)
+            s1_rep_2 = T.tensor(np.array([_[5] for _ in mem]), dtype=T.float).to(self.actor.device)
+            d_rep = T.tensor(np.array([_[6] for _ in mem]), dtype=T.float).to(self.actor.device)
 
             self.critic.eval()
             self.actor.eval()
@@ -53,14 +55,14 @@ class TDDDPG():
 
             # Calculate critic and train
             # s1_rep = self.preprocess_image(s1_rep)
-            targ_actions = self.actor_target.forward(s1_rep)
+            targ_actions = self.actor_target.forward(s1_rep, s1_rep_2)
             # targ_actions = targ_actions + T.clamp(T.Tensor(np.random.normal(scale=.2)), -.5, .5)
 
-            target_q = self.critic_target.forward(s1_rep, targ_actions)
-            target_q_delay = self.critic_target_delay.forward(s1_rep, targ_actions)
+            target_q = self.critic_target.forward(s1_rep,s1_rep_2, targ_actions)
+            target_q_delay = self.critic_target_delay.forward(s1_rep,s1_rep_2, targ_actions)
 
-            q = self.critic.forward(s_rep, a_rep)
-            q_delay = self.critic_delay.forward(s_rep, a_rep)
+            q = self.critic.forward(s_rep,s_rep_2, a_rep)
+            q_delay = self.critic_delay.forward(s_rep,s_rep_2, a_rep)
 
             target_q = target_q.view(-1)
             target_q_delay = target_q_delay.view(-1)
@@ -86,9 +88,9 @@ class TDDDPG():
             # Calculate actor and train
             if j % self.policy_update_delay == 0:
                 self.actor.optimizer.zero_grad()
-                actions = self.actor.forward(s_rep)
+                actions = self.actor.forward(s_rep,s_rep_2)
                 self.actor.train()
-                actor_loss = T.mean(-self.critic.forward(s_rep, actions))
+                actor_loss = T.mean(-self.critic.forward(s_rep,s_rep_2, actions))
                 actor_loss.backward()
                 self.actor.optimizer.step()
                 self.actor.eval()
@@ -128,10 +130,12 @@ class TDDDPG():
         self.critic_target.load_state_dict(critic_dict)
         self.critic_target_delay.load_state_dict(critic_delay_dict)
 
-    def action(self, state):
+    def action(self, state, state_2):
         self.actor.eval()
         state = T.tensor([state], dtype=T.float).to(self.actor.device)
-        act = self.actor.forward(state).to(self.actor.device)
+        state_2 = T.tensor([state_2], dtype=T.float).to(self.actor.device)
+
+        act = self.actor.forward(state, state_2).to(self.actor.device)
         self.actor.train()
         return act.cpu().detach().numpy()[0]
 

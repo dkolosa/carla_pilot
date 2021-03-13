@@ -42,7 +42,7 @@ class Actor(torch.nn.Module):
         #     self.cnn4
         # )
 
-        fc1_inputs = self.calc_cnnweights()
+        fc1_inputs = self.calc_cnnweights()*2
 
         self.layer_1 = layer_1
         self.layer_2 = layer_2
@@ -50,7 +50,6 @@ class Actor(torch.nn.Module):
         self.fc1 = nn.Linear(fc1_inputs, layer_1)
         self.fc2 = nn.Linear(layer_1, layer_2)
         self.output = nn.Linear(layer_2, num_actions)
-        self.flatten = nn.Flatten(fc1_inputs)
 
         f1 = 1/np.sqrt(self.fc1.weight.data.size()[0])
         f2 = 1/np.sqrt(self.fc2.weight.data.size()[0])
@@ -68,29 +67,29 @@ class Actor(torch.nn.Module):
 
     def forward(self, img_left, img_right):
         left_cnn = F.relu(self.cnn1(img_left))
-        left_cnn = F.relu(self.cnn2(x))
-        left_cnn = self.max1(x)
-        left_cnn = F.relu(self.cnn3(x))
-        left_cnn = F.relu(self.cnn4(x))
-        left_cnn = self.max2(x)
+        left_cnn = F.relu(self.cnn2(left_cnn))
+        left_cnn = self.max1(left_cnn)
+        left_cnn = F.relu(self.cnn3(left_cnn))
+        left_cnn = F.relu(self.cnn4(left_cnn))
+        left_cnn = self.max2(left_cnn)
 
         # x = self.image_cnn(image)
         right_cnn = F.relu(self.cnn1(img_right))
-        right_cnn = F.relu(self.cnn2(x))
-        right_cnn = self.max1(x)
-        right_cnn = F.relu(self.cnn3(x))
-        right_cnn = F.relu(self.cnn4(x))
-        right_cnn = self.max2(x)
+        right_cnn = F.relu(self.cnn2(right_cnn))
+        right_cnn = self.max1(right_cnn)
+        right_cnn = F.relu(self.cnn3(right_cnn))
+        right_cnn = F.relu(self.cnn4(right_cnn))
+        right_cnn = self.max2(right_cnn)
 
         left_flat = left_cnn.view(left_cnn.shape[0], -1)
-        right_flat = left_cnn.view(left_cnn.shape[0], -1)
+        right_flat = right_cnn.view(right_cnn.shape[0], -1)
 
         left_flat = F.relu(left_flat)
         right_flat = F.relu(right_flat)
         
         x = F.relu(torch.cat((left_flat, right_flat), dim=1))
-        x = self.fc2(x)
-        x = F.relu(self.bn2(x))
+        x = self.fc1(x)
+        # x = F.relu(self.bn2(x))
         out = torch.tanh(self.output(x))
         return out*self.action_bound
 
@@ -131,9 +130,8 @@ class Critic(torch.nn.Module):
         self.cnn4 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=5)
         self.max1 = nn.MaxPool2d(5,2)
         self.max2 = nn.MaxPool2d(5,2)
-        self.max3 = nn.MaxPool2d(5,2)
 
-        fc1_inputs = self.calc_cnnweights()
+        fc1_inputs = self.calc_cnnweights()*2
 
         self.fc1 = nn.Linear(fc1_inputs, layer_1)
         self.actfc2 = nn.Linear(n_action, layer_2)
@@ -154,17 +152,29 @@ class Critic(torch.nn.Module):
         self.to(self.device)
     
 
-    def forward(self,image, action):
+    def forward(self,image_l, image_r, action):
         
-        # x = self.image_cnn(image)
-        x = F.relu(self.cnn1(image))
-        x = self.max1(x)
-        x = F.relu(self.cnn2(x))
-        x = self.max2(x)
-        x = F.relu(self.cnn3(x))
-        x = self.max3(x)
-        x = F.relu(self.cnn4(x))
-        x = x.view(x.shape[0], -1)
+        image_l = F.relu(self.cnn1(image_l))
+        image_l = F.relu(self.cnn2(image_l))
+        image_l = self.max1(image_l)
+        image_l = F.relu(self.cnn3(image_l))
+        image_l = F.relu(self.cnn4(image_l))
+        image_l = self.max2(image_l)
+
+        image_r = F.relu(self.cnn1(image_r))
+        image_r = F.relu(self.cnn2(image_r))
+        image_r = self.max1(image_r)
+        image_r = F.relu(self.cnn3(image_r))
+        image_r = F.relu(self.cnn4(image_r))
+        image_r = self.max2(image_r)
+
+        image_l = image_l.view(image_l.shape[0], -1)
+        image_r = image_r.view(image_r.shape[0], -1)
+
+        image_l = F.relu(image_l)
+        image_r = F.relu(image_r)
+        x = F.relu(torch.cat((image_l, image_r), dim=1))
+
         x = self.fc1(x)
         # x = torch.add(x, sensor)
         x = F.relu(self.bn1(x))
@@ -180,12 +190,11 @@ class Critic(torch.nn.Module):
     def calc_cnnweights(self):
         input = torch.zeros((1, self.num_channels, self.img_h, self.img_w))
         x = self.cnn1(input)
-        x = self.max1(x)
         x = self.cnn2(x)
-        x = self.max2(x)
+        x = self.max1(x)
         x = self.cnn3(x)
-        x = self.max3(x)
         x = self.cnn4(x)
+        x = self.max2(x)
         x = x.view(x.shape[0], -1)
         return x.shape[1]
 

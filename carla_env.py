@@ -20,14 +20,15 @@ class Carlaenv():
         self.client.set_timeout(2.0)
 
         # Image height and width
-        self.img_width = 320
-        self.img_height = 240
+        self.img_width = 140
+        self.img_height = 160
         self.img_channels = 3
         self.inpuut_image = None
         self.int_step = 0
         self.actor_list = []
 
         self.dash_cam = None
+        self.dash_cam_2 = None
 
         self.observation_space = (self.img_height, self.img_width)
         self.action_space = 3
@@ -60,11 +61,22 @@ class Carlaenv():
         # Modify the attributes of the blueprint to set image resolution and field of view.
         self.camera_bp.set_attribute('image_size_x', f'{self.img_width}')
         self.camera_bp.set_attribute('image_size_y', f'{self.img_height}')
-        self.camera_bp.set_attribute('fov', '110')
+        self.camera_bp.set_attribute('fov', '60')
         # move the camera to the dash of the car
-        camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
+        camera_transform = carla.Transform(carla.Location(x=0.9,y=.9, z=1.5))
         self.sensor_cam = self.world.spawn_actor(self.camera_bp, camera_transform, attach_to=self.vehicle)
         self.actor_list.append(self.sensor_cam)
+
+        # Create a 2nd camera for stereo vision
+        self.camera_bp_2 = self.world.get_blueprint_library().find('sensor.camera.rgb')
+        # Modify the attributes of the blueprint to set image resolution and field of view.
+        self.camera_bp_2.set_attribute('image_size_x', f'{self.img_width}')
+        self.camera_bp_2.set_attribute('image_size_y', f'{self.img_height}')
+        self.camera_bp_2.set_attribute('fov', '60')
+        # move the camera to the dash of the car
+        camera_transform = carla.Transform(carla.Location(x=.9,y=-.9, z=1.5))
+        self.sensor_cam_2 = self.world.spawn_actor(self.camera_bp_2, camera_transform, attach_to=self.vehicle)
+        self.actor_list.append(self.sensor_cam_2)
 
         lane_bp = self.world.get_blueprint_library().find('sensor.other.lane_invasion')
         self.lane_sensor = self.world.spawn_actor(lane_bp, camera_transform, attach_to=self.vehicle)
@@ -93,7 +105,7 @@ class Carlaenv():
         reward, done = self.reward(self.distance, action, delta_accel)
         measurements = [position.location.x, position.location.y, vel_vec.x, vel_vec.y, accel_vec.x, accel_vec.y]          
         self.prev_steer = steering_angle
-        return self.dash_cam, reward, done
+        return self.dash_cam, self.dash_cam_2, reward, done
 
     def reward(self, distance, action, accel_cheange):
         '''The reward signal takes the current state of the agent into account.
@@ -135,6 +147,7 @@ class Carlaenv():
         self.collision = False
         self.setup_sensors()
         self.sensor_cam.listen(lambda data: self.process_image(data))
+        self.sensor_cam_2.listen(lambda data: self.process_image_cam2(data))
         self.actor_list.append(self.vehicle)
         self.int_step = 0
 
@@ -144,7 +157,7 @@ class Carlaenv():
         self.sensor_collision = self.world.spawn_actor(self.collision_bp,collision_transform, attach_to=self.vehicle)
         self.actor_list.append(self.sensor_collision)
         self.sensor_collision.listen(lambda data: self.check_collision(data))
-       
+        
         self.vehicle.apply_control(carla.VehicleControl(throttle=0.0, steer=0.0, reverse=True))
         
         self.start_time = time.time()
@@ -152,13 +165,19 @@ class Carlaenv():
         while self.dash_cam is None:
             time.sleep(0.01)
 
-        return self.dash_cam
+        return self.dash_cam, self.dash_cam_2
 
     def process_image(self,data):
         raw = np.array(data.raw_data)
         img_trans = raw.reshape((self.img_height, self.img_width, 4))
         img_trans = img_trans[:, :, :3]
         self.dash_cam = img_trans
+    
+    def process_image_cam2(self,data):
+        raw = np.array(data.raw_data)
+        img_trans = raw.reshape((self.img_height, self.img_width, 4))
+        img_trans = img_trans[:, :, :3]
+        self.dash_cam_2 = img_trans
 
     def check_collision(self,data):
         # check for collision and act accordingly
@@ -177,5 +196,11 @@ class Carlaenv():
 
     def show_cam(self):
         fp_view = self.dash_cam[:,:,:3]
-        cv2.imshow("",fp_view)
+        cv2.imshow("cam 1",fp_view)
         cv2.waitKey(1)
+
+    def show_cam2(self):
+        fp_view = self.dash_cam_2[:,:,:3]
+        cv2.imshow("cam 2",fp_view)
+        cv2.waitKey(1)
+
