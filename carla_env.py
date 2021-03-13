@@ -122,18 +122,18 @@ class Carlaenv():
         # self.sensor_collision.listen(lambda data: check_collision(data))
         if self.collision:
             self.collision = False
-            reward_col = 10
+            reward_col = 1
             done = True
 
         # reward = destination + speed_limit_threshold - break_force - collisions - large change streeing angle -
                     # jerk 
 
-        reward = -(distance/self.dist_norm) - reward_col - accel_cheange - delta_steering*10 - len(self.crossed_lane)
+        reward = -(distance/self.dist_norm) - reward_col - accel_cheange - delta_steering - len(self.crossed_lane)*.1
 
         if len(self.crossed_lane) > 0:
             self.crossed_lane = []
 
-        if -.1 <= distance <= .1:
+        if -5 <= distance <= 5:
             reward = 1
             done = True
 
@@ -182,7 +182,7 @@ class Carlaenv():
     def check_collision(self,data):
         # check for collision and act accordingly
         self.collision = True
-        print('Collision!!')
+        # print('Collision!!')
 
     def on_lane(self, data):
         self.crossed_lane = data.crossed_lane_markings

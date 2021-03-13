@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     try:
         num_episodes = 1000
-        iter_per_episode = 100
+        iter_per_episode = 200  # seconds used for early stopping
 
         ENV = 'carla'
         carla_env = Carlaenv()
@@ -71,7 +71,9 @@ if __name__ == '__main__':
         j = 0
         for i in range(num_episodes):
             s, s2 = carla_env.reset()
-
+            start = time.time()
+            done = False
+            r = 0
             while True:
                 carla_env.show_cam()
                 carla_env.show_cam2()
@@ -95,9 +97,15 @@ if __name__ == '__main__':
                 sum_reward += r
                 s = s1
                 j += 1
+                stop = time.time()
+
+                if (stop - start) > iter_per_episode:
+                    done = True
                 if done:
                     agent.save_model()
-                    print(f'Episode over {i} of {num_episodes}, distance from target:{carla_env.distance:.3f} reward {r}')
+                    print(f'Episode {i} of {num_episodes}, distance from target (m):{carla_env.distance:.3f}, reward {sum_reward:.4f} '
+                            f'actor loss {agent.actor_loss:.5f} critic loss {agent.critic_loss:.5f}'
+                            f'\n==================================================================')
                     break
 
         

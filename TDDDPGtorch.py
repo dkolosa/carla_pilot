@@ -77,9 +77,8 @@ class TDDDPG():
             self.critic.optimizer.zero_grad()
             self.critic_delay.optimizer.zero_grad()
 
-            critic_loss = T.nn.functional.mse_loss(y_i, q)
-            # critic_loss_delay = T.nn.functional.mse_loss(y_i, q_delay)
-            critic_loss.backward()
+            self.critic_loss = T.nn.functional.mse_loss(y_i, q)
+            self.critic_loss.backward()
             self.critic.optimizer.step()
             self.critic_delay.optimizer.step()
             self.critic.eval()
@@ -90,8 +89,8 @@ class TDDDPG():
                 self.actor.optimizer.zero_grad()
                 actions = self.actor.forward(s_rep,s_rep_2)
                 self.actor.train()
-                actor_loss = T.mean(-self.critic.forward(s_rep,s_rep_2, actions))
-                actor_loss.backward()
+                self.actor_loss = T.mean(-self.critic.forward(s_rep,s_rep_2, actions))
+                self.actor_loss.backward()
                 self.actor.optimizer.step()
                 self.actor.eval()
 

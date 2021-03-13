@@ -28,8 +28,6 @@ class Actor(torch.nn.Module):
 
         self.max1 = nn.MaxPool2d(2,2)
         self.max2 = nn.MaxPool2d(2,2)
-        self.max3 = nn.MaxPool2d(2,2)
-
         #cnn_num_weights = (img_w - kernelfileter +2*padding)/stride + 1
 
         # self.image_cnn = nn.Sequential(
@@ -128,8 +126,9 @@ class Critic(torch.nn.Module):
         self.cnn2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=5)
         self.cnn3 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=5)
         self.cnn4 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=5)
-        self.max1 = nn.MaxPool2d(5,2)
-        self.max2 = nn.MaxPool2d(5,2)
+        
+        self.max1 = nn.MaxPool2d(2,2)
+        self.max2 = nn.MaxPool2d(2,2)
 
         fc1_inputs = self.calc_cnnweights()*2
 
