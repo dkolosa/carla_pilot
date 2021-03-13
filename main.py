@@ -74,6 +74,7 @@ if __name__ == '__main__':
             start = time.time()
             done = False
             r = 0
+            sum_reward = 0
             while True:
                 carla_env.show_cam()
                 carla_env.show_cam2()

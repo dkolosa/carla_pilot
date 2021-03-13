@@ -20,8 +20,8 @@ class Carlaenv():
         self.client.set_timeout(2.0)
 
         # Image height and width
-        self.img_width = 140
-        self.img_height = 160
+        self.img_width = 90
+        self.img_height = 130
         self.img_channels = 3
         self.inpuut_image = None
         self.int_step = 0
@@ -128,7 +128,7 @@ class Carlaenv():
         # reward = destination + speed_limit_threshold - break_force - collisions - large change streeing angle -
                     # jerk 
 
-        reward = -(distance/self.dist_norm) - reward_col - accel_cheange - delta_steering - len(self.crossed_lane)*.1
+        reward = -(distance/self.dist_norm)*10 - reward_col - accel_cheange - delta_steering - len(self.crossed_lane)*.1
 
         if len(self.crossed_lane) > 0:
             self.crossed_lane = []

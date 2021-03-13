@@ -54,9 +54,8 @@ class TDDDPG():
             self.critic_target_delay.eval()
 
             # Calculate critic and train
-            # s1_rep = self.preprocess_image(s1_rep)
             targ_actions = self.actor_target.forward(s1_rep, s1_rep_2)
-            # targ_actions = targ_actions + T.clamp(T.Tensor(np.random.normal(scale=.2)), -.5, .5)
+            targ_actions = targ_actions + T.clamp(T.tensor(np.random.normal(scale=.2)), -.5, .5)
 
             target_q = self.critic_target.forward(s1_rep,s1_rep_2, targ_actions)
             target_q_delay = self.critic_target_delay.forward(s1_rep,s1_rep_2, targ_actions)
@@ -94,8 +93,8 @@ class TDDDPG():
                 self.actor.optimizer.step()
                 self.actor.eval()
 
-            # update target networks
-            self.update_target_network(self.tau)
+                # update target networks
+                self.update_target_network(self.tau)
 
     def update_target_network(self, tau=.001):
         actor = self.actor.named_parameters()
