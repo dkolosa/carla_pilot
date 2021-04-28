@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
         agent = TDDDPG(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, GAMMA,tau, batch_size, save_dir)
 
-        load_models = True
+        load_models = False
         save = True
 
         if load_models:
@@ -73,7 +73,7 @@ if __name__ == '__main__':
             s = carla_env.reset()
 
             while True:
-                carla_env.show_cam()
+                # carla_env.show_cam()
 
                 s_img = agent.preprocess_image(s)
                 a = agent.action(s_img) + actor_noise()
