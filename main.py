@@ -1,3 +1,4 @@
+import argparse
 import sys, os, glob
 import numpy as np
 import cv2
@@ -25,6 +26,11 @@ FPS = 30
 # This sets up the environmnet, have to loop through the environment and update
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-test', help='pass test to test agent in CARLA.',
+                        action="store_true")
+    args = parser.parse_args()
 
     try:
         num_episodes = 201
@@ -70,30 +76,31 @@ if __name__ == '__main__':
         agent.critic_loss = 0
         j = 0
         for i in range(num_episodes):
-            s = carla_env.reset()
+                s = carla_env.reset()
 
-            while True:
-                # carla_env.show_cam()
+                while True:
+                    carla_env.show_cam()
 
-                s_img = agent.preprocess_image(s)
-                a = agent.action(s_img) + actor_noise()
-                s1, r, done = carla_env.step(a)
+                    s_img = agent.preprocess_image(s)
+                    a = agent.action(s_img) + actor_noise()
+                    s1, r, done = carla_env.step(a)
 
-                # Store in replay memory
-                agent.memory.add(
-                    (np.reshape(s, (carla_env.img_channels,carla_env.img_height, 
-                    carla_env.img_width,)), np.reshape(a, (n_action,)), r, 
-                    np.reshape(s1, (carla_env.img_channels,carla_env.img_height, 
-                    carla_env.img_width,)), done))
-                agent.train(j)
+                    # Store in replay memory
+                    if not args.test:
+                        agent.memory.add(
+                            (np.reshape(s, (carla_env.img_channels,carla_env.img_height, 
+                            carla_env.img_width,)), np.reshape(a, (n_action,)), r, 
+                            np.reshape(s1, (carla_env.img_channels,carla_env.img_height, 
+                            carla_env.img_width,)), done))
+                        agent.train(j)
 
-                sum_reward += r
-                s = s1
-                j += 1
-                if done:
-                    agent.save_model()
-                    print(f'Episode over {i} of {num_episodes}, distance from target:{carla_env.distance:.3f} reward {r}')
-                    break
+                    sum_reward += r
+                    s = s1
+                    j += 1
+                    if done:
+                        agent.save_model()
+                        print(f'Episode over {i} of {num_episodes}, distance from target:{carla_env.distance:.3f} reward {r}')
+                        break
 
         
         # clean up after your done playing
