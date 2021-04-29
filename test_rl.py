@@ -5,9 +5,6 @@ import gym.spaces
 import os, datetime
 from utils import OrnsteinUhlenbeck
 from DDPGtorch import DDPG
-from model import Actor, Critic
-from TDDDPGtorch import TDDDPG
-
 
 def test_rl():
     """Test the RL algorithm using an openai gym environment"""
@@ -45,7 +42,7 @@ def test_rl():
 
     actor_noise = OrnsteinUhlenbeck(np.zeros(n_action))
 
-    agent = TDDDPG(n_state, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, PER, GAMMA,
+    agent = DDPG(n_state, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, PER, GAMMA,
                  tau, batch_size, save_dir)
 
     agent.update_target_network(tau)
@@ -63,7 +60,6 @@ def test_rl():
         agent.sum_q = 0
         agent.actor_loss = 0
         agent.critic_loss = 0
-        j = 0
 
         while True:
             env.render()
@@ -80,11 +76,10 @@ def test_rl():
             else:
                 agent.memory.add(
                     (np.reshape(s, (n_state[0],)), np.reshape(a_clip, (n_action,)), r, np.reshape(s1, (n_state[0],)), done))
-            agent.train(j)
+            agent.train()
 
             sum_reward += r
             s = s1
-            j += 1
             if done:
                 print(f'Episode: {i}, reward: {int(sum_reward)}')
                 # rewards.append(sum_reward)
