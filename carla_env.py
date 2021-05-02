@@ -52,6 +52,9 @@ class Carlaenv():
         self.prev_steer = 0.0
         self.distance = 0
 
+        self.accelerometer = None
+        self.gyroscope = None
+
     def setup_sensors(self):
         # setup a dashcam sensor
         # Find the blueprint of the sensor.
@@ -59,13 +62,24 @@ class Carlaenv():
         # Modify the attributes of the blueprint to set image resolution and field of view.
         self.camera_bp.set_attribute('image_size_x', f'{self.img_width}')
         self.camera_bp.set_attribute('image_size_y', f'{self.img_height}')
-        self.camera_bp.set_attribute('fov', '110')
-        # Set the time in seconds between sensor captures
-        # self.camera_bp.set_attribute('sensor_tick', '1.0') 
-        # move the camera to the dash of the car
+        self.camera_bp.set_attribute('fov', '110')        
+        self.camera_bp.set_attribute('sensor_tick', '1.0')
         camera_transform = carla.Transform(carla.Location(x=1.5, z=2.4))
         self.sensor_cam = self.world.spawn_actor(self.camera_bp, camera_transform, attach_to=self.vehicle)
         self.actor_list.append(self.sensor_cam)
+
+        self.imu_bp = self.world.get_blueprint_library().find('sensor.other.imu')
+        self.imu_bp.set_attribute('sensor_tick', '1.0')
+        imu_transform = carla.Transform(carla.Location(x=1.5, z=1.0))
+        self.imu_sensor = self.world.spawn_actor(self.imu_bp, imu_transform, attach_to=self.vehicle)
+        self.actor_list.append(self.imu_sensor)
+
+        # setup the collision sensor
+        self.collision_bp = self.world.get_blueprint_library().find('sensor.other.collision')
+        collision_transform = carla.Transform(carla.Location(x=1.5, z=1.0))
+        self.sensor_collision = self.world.spawn_actor(self.collision_bp,collision_transform, attach_to=self.vehicle)
+        self.actor_list.append(self.sensor_collision)
+        
 
     def step(self, action):
         # process action
@@ -87,30 +101,31 @@ class Carlaenv():
         # calculate reward
         reward, done = self.reward(self.distance, action, delta_accel)
         measurements = [position.location.x, position.location.y, vel_vec.x, vel_vec.y, accel_vec.x, accel_vec.y]          
-        self.prev_steer = steering_angle
+        self.prev_steer = self.gyroscope
         return self.dash_cam, reward, done
 
     def reward(self, distance, action, accel_cheange):
         '''The reward signal takes the current state of the agent into account.
         The agent is penalized for bad driving habits (hard braking, high acceleration,
-        sharp turns, driving too close to other vehicles)'''
+        sharp turns, etc.)'''
 
         speed, steering, brake = action
         reward_col = 0
         done = False
 
-        delta_steering = abs(steering-self.prev_steer)
+        delta_steering = abs(np.linalg.norm(self.gyroscope-self.prev_steer))
+        # if turning
+        # delta_setting = 0
 
         # check for collision
-        # self.sensor_collision.listen(lambda data: check_collision(data))
         if self.collision:
             self.collision = False
-            reward_col = 1
+            reward_col = -1
             done = True
 
         # reward = destination + speed_limit_threshold - break_force - collisions - change streeing angle -
                     # jerk + distance_from_cars_threshold
-        reward = -(distance/self.dist_norm) - reward_col - accel_cheange*10 - delta_steering*10
+        reward = -(distance/self.dist_norm) - accel_cheange*10 - delta_steering
 
         if -.1 <= distance <= .1:
             reward = 1
@@ -126,16 +141,10 @@ class Carlaenv():
         self.collision = False
         self.setup_sensors()
         self.sensor_cam.listen(lambda data: self.process_image(data))
+        self.imu_sensor.listen(lambda data: self.get_imu(data))
+        self.sensor_collision.listen(lambda data: self.check_collision(data))
         self.actor_list.append(self.vehicle)
         self.int_step = 0
-
-        # setup the collision sensor
-        self.collision_bp = self.world.get_blueprint_library().find('sensor.other.collision')
-        collision_transform = carla.Transform(carla.Location(x=1.5, z=1.0))
-        self.sensor_collision = self.world.spawn_actor(self.collision_bp,collision_transform, attach_to=self.vehicle)
-        self.actor_list.append(self.sensor_collision)
-        self.sensor_collision.listen(lambda data: self.check_collision(data))
-       
         self.vehicle.apply_control(carla.VehicleControl(throttle=0.0, steer=0.0, reverse=True))
         
         self.start_time = time.time()
@@ -145,10 +154,15 @@ class Carlaenv():
 
         return self.dash_cam
 
+    def get_imu(self,data):
+        self.accelerometer = np.array([data.accelerometer.x, data.accelerometer.y])
+        self.gyroscope = np.array([data.gyroscope.x, data.gyroscope.y])
+
     def process_image(self,data):
+        channels = self.img_channels
         raw = np.array(data.raw_data)
         img_trans = raw.reshape((self.img_height, self.img_width, 4))
-        img_trans = img_trans[:, :, :3]
+        img_trans = img_trans[:, :, :channels]
         self.dash_cam = img_trans
 
     def check_collision(self,data):
