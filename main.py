@@ -73,7 +73,7 @@ if __name__ == '__main__':
             s = carla_env.reset()
 
             while True:
-                # carla_env.show_cam()
+                carla_env.show_cam()
 
                 s_img = agent.preprocess_image(s)
                 a = agent.action(s_img)
@@ -85,7 +85,7 @@ if __name__ == '__main__':
                     carla_env.img_width,)), np.reshape(a, (n_action,)), r, 
                     np.reshape(s1, (carla_env.img_channels,carla_env.img_height, 
                     carla_env.img_width,)), done))
-                agent.train(j)
+                # agent.train(j)
 
                 sum_reward += r
                 s = s1

@@ -6,7 +6,7 @@ import numpy as np
 import torch as T
 
 class Actor(torch.nn.Module):
-    def __init__(self, state, num_actions, action_bound, batch_size, layer_1=128, layer_2=128, lr=0.0001, checkpt='ddpg-actor'):
+    def __init__(self, state, num_actions, action_bound, batch_size, layer_1=128, layer_2=128, lr=0.0001,use_mobileNet=False, checkpt='ddpg-actor'):
         super(Actor, self).__init__()
 
         self.chkpt = checkpt + '_actor.ckpt'
@@ -16,36 +16,32 @@ class Actor(torch.nn.Module):
         self.num_channels = state[0]
         self.img_h = state[1]
         self.img_w = state[2]
+        self.layer_1 = layer_1
+        self.layer_2 = layer_2
 
         kernel = 5
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
+        self.use_mobileNet = use_mobileNet
 
-        self.cnn1 = nn.Conv2d(in_channels=self.num_channels, out_channels=64, kernel_size=kernel)
-        self.cnn2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=kernel)
-        self.cnn3 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=kernel)
-        self.cnn4 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=2)
+        if self.use_mobileNet:
+            self.mobilenet = torch.hub.load('pytorch/vision:v0.9.0', 'mobilenet_v2', pretrained=True)
+            self.mobilenet.classifer = nn.Linear(1200, layer_1)
+            fc1_inputs = layer_1
+        
+        else:
+            self.cnn1 = nn.Conv2d(in_channels=self.num_channels, out_channels=64, kernel_size=kernel)
+            self.cnn2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=kernel)
+            self.cnn3 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=kernel)
+            self.cnn4 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=2)
 
-        self.max1 = nn.MaxPool2d(5,2)
-        self.max2 = nn.MaxPool2d(5,2)
-        self.max3 = nn.MaxPool2d(2,2)
+            self.max1 = nn.MaxPool2d(5,2)
+            self.max2 = nn.MaxPool2d(5,2)
+            self.max3 = nn.MaxPool2d(2,2)
 
-        #cnn_num_weights = (img_w - kernelfileter +2*padding)/stride + 1
+            fc1_inputs = self.calc_cnnweights()
 
-        # self.image_cnn = nn.Sequential(
-        #     self.cnn1,
-        #     nn.MaxPool2d(2),
-        #     self.cnn2,
-        #     nn.MaxPool2d(2),
-        #     self.cnn3,
-        #     nn.MaxPool2d(2),
-        #     self.cnn4
-        # )
 
-        fc1_inputs = self.calc_cnnweights()
-
-        self.layer_1 = layer_1
-        self.layer_2 = layer_2
         
         self.fc1 = nn.Linear(fc1_inputs, layer_1)
         self.fc2 = nn.Linear(layer_1, layer_2)
@@ -66,15 +62,20 @@ class Actor(torch.nn.Module):
         self.to(self.device)
 
     def forward(self, image):
-        x = F.relu(self.cnn1(image))
-        x = self.max1(x)
-        x = F.relu(self.cnn2(x))
-        x = self.max2(x)
-        x = F.relu(self.cnn3(x))
-        x = self.max3(x)
-        x = F.relu(self.cnn4(x))
-        # x = self.image_cnn(image)
-        x = x.view(x.shape[0], -1)
+        
+        if self.Mobilenet_model:
+            self.mobilenet(image)
+        else:
+            x = F.relu(self.cnn1(image))
+            x = self.max1(x)
+            x = F.relu(self.cnn2(x))
+            x = self.max2(x)
+            x = F.relu(self.cnn3(x))
+            x = self.max3(x)
+            x = F.relu(self.cnn4(x))
+            # x = self.image_cnn(image)
+            x = x.view(x.shape[0], -1)
+
         x = self.fc1(x)
         x = F.relu(self.bn1(x))
         x = self.fc2(x)

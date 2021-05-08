@@ -1,7 +1,9 @@
 import numpy as np
 import torch as T
 import torch.functional as F
+from torchvision import transforms
 from replay_memory import Uniform_Memory
+from PIL import Image
 import os
 from model_torch_vision import Actor, Critic
 
@@ -17,15 +19,15 @@ class TDDDPG():
 
         self.save_dir = save_dir
 
-        self.actor = Actor(n_states, n_action, action_bound,batch_size, layer_1_nodes, layer_2_nodes)
+        self.actor = Actor(n_states, n_action, action_bound,batch_size, layer_1_nodes, layer_2_nodes,use_mobileNet=True)
         self.critic = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes)
         self.critic_delay = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes,checkpt='critic-delay')
         
-        self.actor_target = Actor(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes)
+        self.actor_target = Actor(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes, use_mobileNet=True)
         self.critic_target = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes)
         self.critic_target_delay = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes,checkpt='actor_delay')
 
-        self.update_target_network()
+        # self.update_target_network()
 
         self.memory = Uniform_Memory(buffer_size=100000)
 
@@ -138,6 +140,16 @@ class TDDDPG():
         # pytorch image: C x H x W
         image_swp = np.swapaxes(image, -1, 0)
         image_swp = np.swapaxes(image_swp,-1, -2)
+        
+        preprocess = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
+        input_tensor = preprocess(Image.fromarray(image_swp))
+
         return image_swp/255.0
 
     def load_model(self):
