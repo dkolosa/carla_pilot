@@ -42,7 +42,6 @@ class TDDDPG():
             r_rep = T.tensor(np.array([_[2] for _ in mem]), dtype=T.float).to(self.actor.device)
             s1_rep = T.tensor(np.array([_[3] for _ in mem]), dtype=T.float).to(self.actor.device)
             d_rep = T.tensor(np.array([_[4] for _ in mem]), dtype=T.float).to(self.actor.device)
-
             self.critic.eval()
             self.actor.eval()
             self.critic_delay.eval()
@@ -129,7 +128,7 @@ class TDDDPG():
 
     def action(self, state):
         self.actor.eval()
-        state = T.tensor([state], dtype=T.float).to(self.actor.device)
+        state = T.tensor([state], dtype=T.float).to(self.actor.device) 
         act = self.actor.forward(state).to(self.actor.device)
         self.actor.train()
         return act.cpu().detach().numpy()[0]
@@ -138,14 +137,14 @@ class TDDDPG():
         # pytorch image: C x H x W
         image_swp = np.swapaxes(image, -1, 0)
         image_swp = np.swapaxes(image_swp,-1, -2)
-        return image_swp/255.0
+        return image_swp
 
     def load_model(self):
         self.actor.load_state_dict(T.load(os.path.join(self.save_dir, self.actor.chkpt)))
         self.critic.load_state_dict(T.load(os.path.join(self.save_dir, self.critic.chkpt)))
-        self.actor_target.load_state_dict(T.load(os.path.join(self.save_dir, self.actor_target.chkpt)))
-        self.critic_target.load_state_dict(T.load(os.path.join(self.save_dir, self.critic_target.chkpt)))
+        # self.actor_target.load_state_dict(T.load(os.path.join(self.save_dir, self.actor_target.chkpt)))
+        # self.critic_target.load_state_dict(T.load(os.path.join(self.save_dir, self.critic_target.chkpt)))
 
     def save_model(self):
-        self.actor.save_model()
-        self.critic.save_model()
+        self.actor.save_model(self.save_dir)
+        self.critic.save_model(self.save_dir)

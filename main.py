@@ -36,12 +36,9 @@ if __name__ == '__main__':
         num_episodes = 201
         iter_per_episode = 100
 
-        ENV = 'carla'
         carla_env = Carlaenv()
 
         model_dir = os.path.join(os.getcwd(), 'models')
-        os.makedirs(os.path.join(model_dir, str(datetime.date.today()) + '-' + ENV), exist_ok=True)
-        save_dir = os.path.join(model_dir, str(datetime.date.today()) + '-' + ENV)
 
         n_action = carla_env.action_space
         n_states = (carla_env.img_channels, carla_env.img_height, carla_env.img_width)
@@ -58,17 +55,13 @@ if __name__ == '__main__':
         GAMMA = 0.99
         ep = 0.001
 
-        actor_noise = OrnsteinUhlenbeck(np.zeros(n_action))
-
-        agent = TDDDPG(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, GAMMA,tau, batch_size, save_dir)
+        agent = TDDDPG(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, GAMMA,tau, batch_size, model_dir)
 
         load_models = False
         save = True
 
         if load_models:
             agent.load_model()
-
-        noise_decay = 1.0
 
         sum_reward = 0
         agent.sum_q = 0
@@ -82,7 +75,7 @@ if __name__ == '__main__':
                     carla_env.show_cam()
 
                     s_img = agent.preprocess_image(s)
-                    a = agent.action(s_img) + actor_noise()
+                    a = agent.action(s_img)
                     s1, r, done = carla_env.step(a)
 
                     # Store in replay memory

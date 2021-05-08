@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -83,8 +85,8 @@ class Actor(torch.nn.Module):
         out = torch.tanh(self.output(x))
         return out*self.action_bound
 
-    def save_model(self):
-        torch.save(self.state_dict(), self.chkpt)
+    def save_model(self, model_dir):
+        torch.save(self.state_dict(), os.path.join(model_dir,self.chkpt))
 
     def calc_cnnweights(self):
         input = torch.zeros((1, self.num_channels, self.img_h, self.img_w))
@@ -164,8 +166,8 @@ class Critic(torch.nn.Module):
         out = self.output(x)
         return out
 
-    def save_model(self):
-        torch.save(self.state_dict(), self.chkpt)
+    def save_model(self, model_dir):
+        torch.save(self.state_dict(), os.path.join(model_dir,self.chkpt))
 
     def calc_cnnweights(self):
         input = torch.zeros((1, self.num_channels, self.img_h, self.img_w))
