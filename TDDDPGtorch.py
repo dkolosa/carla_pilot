@@ -1,7 +1,9 @@
 import numpy as np
 import torch as T
 import torch.functional as F
+from torchvision import transforms
 from replay_memory import Uniform_Memory
+from PIL import Image
 import os
 from model_torch_vision import Actor, Critic
 
@@ -17,15 +19,15 @@ class TDDDPG():
 
         self.save_dir = save_dir
 
-        self.actor = Actor(n_states, n_action, action_bound,batch_size, layer_1_nodes, layer_2_nodes)
+        self.actor = Actor(n_states, n_action, action_bound,batch_size, layer_1_nodes, layer_2_nodes,use_mobileNet=False)
         self.critic = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes)
         self.critic_delay = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes,checkpt='critic-delay')
         
-        self.actor_target = Actor(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes)
+        self.actor_target = Actor(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes, use_mobileNet=False)
         self.critic_target = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes)
         self.critic_target_delay = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes,checkpt='actor_delay')
 
-        self.update_target_network()
+        # self.update_target_network()
 
         self.memory = Uniform_Memory(buffer_size=100000)
 
@@ -38,10 +40,13 @@ class TDDDPG():
         if self.batch_size < self.memory.get_count:
             mem = self.memory.sample(self.batch_size)
             s_rep = T.tensor(np.array([_[0] for _ in mem]), dtype=T.float).to(self.actor.device)
-            a_rep = T.tensor(np.array([_[1] for _ in mem]), dtype=T.float).to(self.actor.device)
-            r_rep = T.tensor(np.array([_[2] for _ in mem]), dtype=T.float).to(self.actor.device)
-            s1_rep = T.tensor(np.array([_[3] for _ in mem]), dtype=T.float).to(self.actor.device)
-            d_rep = T.tensor(np.array([_[4] for _ in mem]), dtype=T.float).to(self.actor.device)
+            m_rep = T.tensor(np.array([_[1] for _ in mem]), dtype=T.float).to(self.actor.device)
+            a_rep = T.tensor(np.array([_[2] for _ in mem]), dtype=T.float).to(self.actor.device)
+            r_rep = T.tensor(np.array([_[3] for _ in mem]), dtype=T.float).to(self.actor.device)
+            s1_rep = T.tensor(np.array([_[4] for _ in mem]), dtype=T.float).to(self.actor.device)
+            m1_rep = T.tensor(np.array([_[5] for _ in mem]), dtype=T.float).to(self.actor.device)
+            d_rep = T.tensor(np.array([_[6] for _ in mem]), dtype=T.float).to(self.actor.device)
+
             self.critic.eval()
             self.actor.eval()
             self.critic_delay.eval()
@@ -50,8 +55,7 @@ class TDDDPG():
             self.critic_target_delay.eval()
 
             # Calculate critic and train
-            # s1_rep = self.preprocess_image(s1_rep)
-            targ_actions = self.actor_target.forward(s1_rep)
+            targ_actions = self.actor_target.forward(s1_rep, m1_rep)
             # targ_actions = targ_actions + T.clamp(T.Tensor(np.random.normal(scale=.2)), -.5, .5)
 
             target_q = self.critic_target.forward(s1_rep, targ_actions)
@@ -84,7 +88,7 @@ class TDDDPG():
             # Calculate actor and train
             if j % self.policy_update_delay == 0:
                 self.actor.optimizer.zero_grad()
-                actions = self.actor.forward(s_rep)
+                actions = self.actor.forward(s_rep, m_rep)
                 self.actor.train()
                 actor_loss = T.mean(-self.critic.forward(s_rep, actions))
                 actor_loss.backward()
@@ -126,10 +130,11 @@ class TDDDPG():
         self.critic_target.load_state_dict(critic_dict)
         self.critic_target_delay.load_state_dict(critic_delay_dict)
 
-    def action(self, state):
+    def action(self, state, sensors):
         self.actor.eval()
-        state = T.tensor([state], dtype=T.float).to(self.actor.device) 
-        act = self.actor.forward(state).to(self.actor.device)
+        state = T.tensor([state], dtype=T.float).to(self.actor.device)
+        sensors = T.tensor([sensors], dtype=T.float).to(self.actor.device)
+        act = self.actor.forward(state, sensors).to(self.actor.device)
         self.actor.train()
         return act.cpu().detach().numpy()[0]
 
@@ -137,7 +142,7 @@ class TDDDPG():
         # pytorch image: C x H x W
         image_swp = np.swapaxes(image, -1, 0)
         image_swp = np.swapaxes(image_swp,-1, -2)
-        return image_swp
+        return image_swp/255.0
 
     def load_model(self):
         self.actor.load_state_dict(T.load(os.path.join(self.save_dir, self.actor.chkpt)))

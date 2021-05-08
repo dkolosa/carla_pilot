@@ -5,4 +5,7 @@ models/
 *.hd5
 __pycache__/
 .DS_Store
+models/
+carla/
+.DS_Store
 tf_models/
