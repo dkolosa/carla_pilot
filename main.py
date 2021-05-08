@@ -28,7 +28,6 @@ if __name__ == '__main__':
 
     try:
         num_episodes = 201
-        iter_per_episode = 100
 
         ENV = 'carla'
         carla_env = Carlaenv()
@@ -39,6 +38,7 @@ if __name__ == '__main__':
 
         n_action = carla_env.action_space
         n_states = (carla_env.img_channels, carla_env.img_height, carla_env.img_width)
+        measurements = 4
         action_bound = .5
         batch_size = 2
         # Will have to add conv nets for processing
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         agent = TDDDPG(n_states, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, GAMMA,tau, batch_size, save_dir)
 
         load_models = False
-        save = True
+        save = False
 
         if load_models:
             agent.load_model()
@@ -74,25 +74,23 @@ if __name__ == '__main__':
 
             while True:
                 carla_env.show_cam()
-
-                s_img = agent.preprocess_image(s)
-                a = agent.action(s_img)
+                s_img = agent.preprocess_image(s[0])
+                a = agent.action(s_img, s[1])
                 s1, r, done = carla_env.step(a)
-
                 # Store in replay memory
                 agent.memory.add(
-                    (np.reshape(s, (carla_env.img_channels,carla_env.img_height, 
-                    carla_env.img_width,)), np.reshape(a, (n_action,)), r, 
-                    np.reshape(s1, (carla_env.img_channels,carla_env.img_height, 
-                    carla_env.img_width,)), done))
-                # agent.train(j)
+                    (np.reshape(s[0], (carla_env.img_channels,carla_env.img_height, 
+                    carla_env.img_width,)),np.reshape(s[1], (measurements,)), np.reshape(a, (n_action,)), r, 
+                    np.reshape(s1[0], (carla_env.img_channels,carla_env.img_height, 
+                    carla_env.img_width,)),np.reshape(s1[1], (measurements,)),  done))
+                agent.train(j)
 
                 sum_reward += r
                 s = s1
                 j += 1
                 if done:
                     agent.save_model()
-                    print(f'Episode over {i} of {num_episodes}, distance from target:{carla_env.distance:.3f} reward {r}')
+                    print(f'Episode {i} of {num_episodes}, distance from target:{carla_env.distance:.3f} reward {r}')
                     break
 
         

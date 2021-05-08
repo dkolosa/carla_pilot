@@ -89,9 +89,9 @@ class Carlaenv():
         # Will have to scale/normalize the actions
         self.vehicle.apply_control(carla.VehicleControl(throttle=speed, steer=steering_angle, brake=braking))
 
-        # state is the image
         position = self.vehicle.get_transform() # given in meters
         vel_vec = self.vehicle.get_velocity()  # m/s
+
         vel = math.sqrt(vel_vec.x**2 + vel_vec.y**2 + vel_vec.z**2)
         accel_vec = self.vehicle.get_acceleration() # m/s^2
         accel = math.sqrt(accel_vec.x**2 + accel_vec.y**2 + accel_vec.z**2)
@@ -100,9 +100,9 @@ class Carlaenv():
                      (self.dest[1]-position.location.y)**2)
         # calculate reward
         reward, done = self.reward(self.distance, action, delta_accel)
-        measurements = [position.location.x, position.location.y, vel_vec.x, vel_vec.y, accel_vec.x, accel_vec.y]          
+        measurements = np.array([self.accelerometer, self.gyroscope])    
         self.prev_steer = self.gyroscope
-        return self.dash_cam, reward, done
+        return (self.dash_cam, measurements), reward, done
 
     def reward(self, distance, action, accel_cheange):
         '''The reward signal takes the current state of the agent into account.
@@ -118,17 +118,19 @@ class Carlaenv():
         # delta_setting = 0
 
         # check for collision
-        if self.collision:
-            self.collision = False
-            reward_col = -1
-            done = True
+
 
         # reward = destination + speed_limit_threshold - break_force - collisions - change streeing angle -
                     # jerk + distance_from_cars_threshold
-        reward = -(distance/self.dist_norm) - accel_cheange*10 - delta_steering
+        reward = -(distance/self.dist_norm) - accel_cheange - delta_steering
 
         if -.1 <= distance <= .1:
             reward = 1
+            done = True
+        
+        if self.collision:
+            self.collision = False
+            reward = -1
             done = True
 
         return reward, done
@@ -152,7 +154,10 @@ class Carlaenv():
         while self.dash_cam is None:
             time.sleep(0.01)
 
-        return self.dash_cam
+        measurements = np.array([0, 0, 0, 0])
+
+
+        return (self.dash_cam, measurements)
 
     def get_imu(self,data):
         self.accelerometer = np.array([data.accelerometer.x, data.accelerometer.y])
@@ -168,7 +173,7 @@ class Carlaenv():
     def check_collision(self,data):
         # check for collision and act accordingly
         self.collision = True
-        print('Collision!!')
+        # print('Collision!!')
 
     def cleanup(self):
         for actor in self.actor_list:
