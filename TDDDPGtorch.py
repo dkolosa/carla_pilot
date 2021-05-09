@@ -27,7 +27,7 @@ class TDDDPG():
         self.critic_target = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes)
         self.critic_target_delay = Critic(n_states, n_action,layer_1_nodes, layer_2_nodes,checkpt='actor_delay')
 
-        # self.update_target_network()
+        self.update_target_network()
 
         self.memory = Uniform_Memory(buffer_size=100000)
 
@@ -56,7 +56,7 @@ class TDDDPG():
 
             # Calculate critic and train
             targ_actions = self.actor_target.forward(s1_rep, m1_rep)
-            # targ_actions = targ_actions + T.clamp(T.Tensor(np.random.normal(scale=.2)), -.5, .5)
+            targ_actions = T.clamp(targ_actions + T.clamp(T.tensor(np.random.normal(scale=.2)), .5,.5), 0, .5)
 
             target_q = self.critic_target.forward(s1_rep, targ_actions)
             target_q_delay = self.critic_target_delay.forward(s1_rep, targ_actions)
