@@ -37,7 +37,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     try:
-        num_episodes = 201
+        num_episodes = 20000
 
         carla_env = Carlaenv()
 
@@ -46,7 +46,7 @@ if __name__ == '__main__':
         n_action = carla_env.action_space
         n_states = (carla_env.img_channels, carla_env.img_height, carla_env.img_width)
         measurements = 4
-        action_bound = .5
+        action_bound = 1
         batch_size = 2
 
         layer_1_nodes, layer_2_nodes = 128, 128
