@@ -69,7 +69,6 @@ if __name__ == '__main__':
         j = 0
         for i in range(num_episodes):
             s = carla_env.reset()
-
             while True:
                 carla_env.show_cam()
                 s_img = agent.preprocess_image(s[0])
@@ -90,7 +89,7 @@ if __name__ == '__main__':
                 if done:
                     if args.save:
                         agent.save_model()
-                    print(f'Episode {i} of {num_episodes}, distance from target:{carla_env.distance:.3f} reward {r}')
+                    print(f'Episode {i} of {num_episodes},distance from target:{carla_env.distance:.3f} reward {r}')
                     break
 
         

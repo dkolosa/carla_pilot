@@ -92,19 +92,19 @@ class Carlaenv():
         position = self.vehicle.get_transform() # given in meters
         vel_vec = self.vehicle.get_velocity()  # m/s
 
-        vel = math.sqrt(vel_vec.x**2 + vel_vec.y**2 + vel_vec.z**2)
+        vel = math.sqrt(vel_vec.x**2 + vel_vec.y**2 + vel_vec.z**2) * 3.6
         accel_vec = self.vehicle.get_acceleration() # m/s^2
         accel = math.sqrt(accel_vec.x**2 + accel_vec.y**2 + accel_vec.z**2)
         delta_accel = accel - self.prev_accel
         self.distance = np.sqrt((self.dest[0]-position.location.x)**2 +
                      (self.dest[1]-position.location.y)**2)
         # calculate reward
-        reward, done = self.reward(self.distance, action, delta_accel)
+        reward, done = self.reward(self.distance, action, delta_accel, vel)
         measurements = np.array([self.accelerometer, self.gyroscope])    
         self.prev_steer = self.gyroscope
         return (self.dash_cam, measurements), reward, done
 
-    def reward(self, distance, action, accel_cheange):
+    def reward(self, distance, action, accel_cheange, vel):
         '''The reward signal takes the current state of the agent into account.
         The agent is penalized for bad driving habits (hard braking, high acceleration,
         sharp turns, etc.)'''
@@ -119,10 +119,14 @@ class Carlaenv():
 
         # check for collision
 
-
+        if vel < 40:
+            vel_reward = -.5
+        else:
+            vel_reward = .5
+        
         # reward = destination + speed_limit_threshold - break_force - collisions - change streeing angle -
                     # jerk + distance_from_cars_threshold
-        reward = -(distance/self.dist_norm) - accel_cheange - delta_steering
+        reward = -(distance/self.dist_norm) - accel_cheange - delta_steering + vel_reward
 
         if -.1 <= distance <= .1:
             reward = 1
