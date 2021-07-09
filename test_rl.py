@@ -1,3 +1,7 @@
+# This function is used to test the agent RL algorithm (DDPG) in an openai gym environment. The same
+# Only use this the prototype RL algorithms in simple environments before using it in 
+# more complicated environments (Carla).
+
 import torch as T
 import numpy as np
 import gym
@@ -44,8 +48,6 @@ def test_rl():
 
     agent = DDPG(n_state, n_action, action_bound, layer_1_nodes, layer_2_nodes, actor_lr, critic_lr, PER, GAMMA,
                  tau, batch_size, save_dir)
-
-    agent.update_target_network(tau)
 
     load_models = False
     save = True
