@@ -22,12 +22,7 @@ import carla
 
 FPS = 30
 
-
-# This sets up the environmnet, have to loop through the environment and update
-
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser()
+def parse_arguments(parser):
     parser.add_argument('-test', help='does not train the models.',
                         action="store_true")
     parser.add_argument('-load', help='load the models in the models directory',
@@ -35,6 +30,14 @@ if __name__ == '__main__':
     parser.add_argument('-save', help='save the model in training in the models directory',
                         action="store_true")
     args = parser.parse_args()
+    return args
+
+# This sets up the environmnet, have to loop through the environment and update
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    args = parse_arguments(parser)
 
     try:
         num_episodes = 20000
@@ -96,5 +99,3 @@ if __name__ == '__main__':
         # clean up after your done playing
     finally:
         carla_env.cleanup()
-
-
